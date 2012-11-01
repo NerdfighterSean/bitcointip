@@ -879,11 +879,11 @@ def find_message_command(themessage): #array
 	
 
 	
-##CHECK FOR MESSAGE TIP (take care of sending all messages here, return empty string, telling eval_messages to not send any more messages.
-	
-##regex expression for a tip "+bitcointip username amount verify"
+	##CHECK FOR MESSAGE TIP (take care of sending all messages here, return empty string, telling eval_messages to not send any more messages.
+		
+	##regex expression for a tip "+bitcointip username amount verify"
 
-##TODO this regex isn't working in python, but does in PHP, what's wrong?
+	##TODO this regex isn't working in python, but does in PHP, what's wrong?
 
 	regex = re.compile("(\+((bitcointip)|(bitcoin)|(tip)|(btctip)|(bittip)|(btc))( ((1([A-Za-z0-9]{25,35}))||((@)?[A-Za-z0-9_-]{4,20})))( ((((((\$)?(((\d{1,3}(\,\d{3})*|(\d+))(\.\d{1,2})?)|(\.\d{1,2})))(( )?USD))|(((\$)(((\d{1,3}(\,\d{3})*|(\d+))(\.\d{1,2})?)|(\.\d{1,2})))(( )?USD)?))|(((((B)|(&amp;#3647;))(((\d{1,3}(\,\d{3}){1,2}|(\d+))(((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8})))?))|((((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8}))))))(( )?BTC)?)|(((B)|(&amp;#3647;))?(((\d{1,3}(\,\d{3}){1,2}|(\d+))(((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8})))?))|((((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8}))))))(( )?BTC)))))|(ALL\b)))( NOVERIFY)?)",re.IGNORECASE)
 	command = regex.search(body)
@@ -1196,44 +1196,36 @@ def find_message_command(themessage): #array
 				#todo mysql python
 				mysql_query("INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) VALUES ('', 'message', '$tipreceiverusername', '$subject', '$receivermessage', '', '', '0', '".time()."')",$con);
 
-			return ""
+		return ""
 		
 		
 		
-			##HELP
-			if(preg_match('/HELP/i', $body, $command) && returnstring=="")
-		{
-		returnstring="Check the [Help Page](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).";
-		}
+	##HELP
+	regex = re.compile("(HELP)",re.IGNORECASE)
+	command = regex.search(body)
+	
+	if (command and returnstring==""):
+		returnstring = "Check the [Help Page](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/)."
 		
 		
-			##NO COMMAND DO YOU NEED HELP?
-		##"blah blah blah"
-		if (returnstring==""){
-			
-			returnstring="This is the bitcointip bot.  No command was found in your message.\n\nTo fund your account, send bitcoins to your Deposit Address.\n\nFor help with commands, see [This Page](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).\n\n*Replies from the bot take on average 7.5 minutes but may take 30 minutes or more in some cases.*\n\n*Deposits are updated once per hour.*";
-			
-		}
+	##NO COMMAND FOUND DO YOU NEED HELP?
+	if (returnstring == ""):	
+		returnstring = "This is the bitcointip bot.  No command was found in your message.\n\nTo fund your account, send bitcoins to your Deposit Address.\n\nFor help with commands, see [This Page](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).\n\n*Replies from the bot take on average 7.5 minutes but may take 30 minutes or more in some cases.*\n\n*Deposits are updated once per hour.*"
 		
 		
 
-		##ALL MESSAGES ADD FOOTER TO END OF ANY MESSAGE
+	##ALL MESSAGES ADD FOOTER TO END OF ANY MESSAGE
 		
-	$authorbalance=getuserbalance($author);
-	$authoraddress=getuseraddress($author);
+	authorbalance = getuserbalance(author);
+	authoraddress = getuseraddress(author);
 		
-		$authorbalance=number_format($authorbalance, 8, ".", "");
-		$authorUSDbalance=number_format($authorUSDbalance, 2, ".", "");
+	authorbalance = number_format(authorbalance, 8, ".", "") #todo python
+	authorUSDbalance = number_format(authorUSDbalance, 2, ".", "") #todo python
 		
-		returnstring.="\n\n---\n\n|||
-	|:|:|
-	| Account Owner: | **$author** |
-	| Deposit Address: | **$authoraddress** |
-	| Address Balance: | **$authorbalance BTC** *(~$$authorUSDbalance USD)* |"."\n\n
-	[About Bitcointip](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/) (BETA!)";
+	returnstring += "\n\n---\n\n|||\n|:|:|\n| Account Owner: | **$author** |\n| Deposit Address: | **$authoraddress** |\n| Address Balance: | **$authorbalance BTC** *(~$$authorUSDbalance USD)* |\n\[About Bitcointip](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/) (BETA!)"
 
 		
-		return returnstring;
+	return returnstring;
 		
 	}
 
