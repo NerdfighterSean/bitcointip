@@ -623,7 +623,7 @@ def find_message_command(themessage): #array
 	regex = re.compile("REDEEM( )?KARMA:( )?(1([A-Za-z0-9]{25,35}))",re.IGNORECASE)
 	command = regex.search(body)
 	
-	if (!command and returnstring==""):
+	if (command and returnstring==""):
 		
 		#karma redemption command found
 		karmabitcoinaddress = command[2]
@@ -736,7 +736,7 @@ def find_message_command(themessage): #array
 	regex = re.compile("((TRANSACTIONS)|(HISTORY)|(ACTIVITY))",re.IGNORECASE)
 	command = regex.search(body)
 	
-	if (!command and returnstring==""):
+	if (command and returnstring==""):
 		
 		#add first line of transaction table headers to the response.
 		transactionhistorymessage = "\n#**%s Transaction History***\n\nDate | Sender | Receiver | BTC | ~USD | Status |\n|:|:|:|:|:|:|\n" % (author)
@@ -799,7 +799,7 @@ def find_message_command(themessage): #array
 	regex = re.compile("((REPLACE PRIVATE KEY WITH:)( )?(5[a-zA-Z0-9]{35,60})(( )*(\n)*( )*)(TRANSFER BALANCE:)( )?(Y|N))",re.IGNORECASE)
 	command = regex.search(body)
 	
-	if (!command and returnstring==""):
+	if (command and returnstring==""):
 
 		if (getusergiftamount(author) >= 0.5):
 		#do it
@@ -873,7 +873,7 @@ def find_message_command(themessage): #array
 	regex = re.compile("(ACCEPT)",re.IGNORECASE)
 	command = regex.search(body)
 	
-	if (!command and returnstring==""):
+	if (command and returnstring==""):
 		update_lastactive($author);
 		returnstring = "All pending transactions will be accepted.  No currently existing tips to you will be reversed."
 	
@@ -888,7 +888,7 @@ def find_message_command(themessage): #array
 	regex = re.compile("(\+((bitcointip)|(bitcoin)|(tip)|(btctip)|(bittip)|(btc))( ((1([A-Za-z0-9]{25,35}))||((@)?[A-Za-z0-9_-]{4,20})))( ((((((\$)?(((\d{1,3}(\,\d{3})*|(\d+))(\.\d{1,2})?)|(\.\d{1,2})))(( )?USD))|(((\$)(((\d{1,3}(\,\d{3})*|(\d+))(\.\d{1,2})?)|(\.\d{1,2})))(( )?USD)?))|(((((B)|(&amp;#3647;))(((\d{1,3}(\,\d{3}){1,2}|(\d+))(((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8})))?))|((((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8}))))))(( )?BTC)?)|(((B)|(&amp;#3647;))?(((\d{1,3}(\,\d{3}){1,2}|(\d+))(((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8})))?))|((((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8}))))))(( )?BTC)))))|(ALL\b)))( NOVERIFY)?)",re.IGNORECASE)
 	command = regex.search(body)
 	
-	if (!command and returnstring==""):
+	if (command and returnstring==""):
 		##message contains transaction
 		print "<br>message contains tip!"
 		
@@ -915,7 +915,7 @@ def find_message_command(themessage): #array
 		##isolate the tipping command
 		tipstring = command.groups[?]
 		
-		print "<br>Tipstring: '$tipstring'";
+		print ("<br>Tipstring: '$tipstring'")
 
 		receiverusernameregex = re.compile("( (@)?([A-Za-z0-9_-]{4,20}) )",re.IGNORECASE)
 		
@@ -951,60 +951,49 @@ def find_message_command(themessage): #array
 		
 		
 		##does $tipstring contain receiverusername?
-		if (!receiverusernamearray):
+		if (receiverusernamearray):
 			includereceiverusername = 1
 			tipreceiverusername = receiverusernamearray.groups[0]
 			tipreceiverusername = trim($tipreceiverusername," @")
-			print "<br>receiverusername:$tipreceiverusername"
+			print ("<br>receiverusername:$tipreceiverusername")
 
 		##does $tipstring contain receiveraddress?
-		if (preg_match($receiveraddressregex, $tipstring, $receiveraddressarray)==1)
-		{
-			$includereceiveraddress=1;
-			$tipreceiveraddress=$receiveraddressarray[2];
-			print "<br>receiveraddress:$tipreceiveraddress";
-		}
+		if (receiveraddressarray):
+			includereceiveraddress=1
+			tipreceiveraddress = receiveraddressarray.groups[?]
+			print ("<br>receiveraddress:$tipreceiveraddress")
+
 
 		##does $tipstring contain dollaramount?
-		if (preg_match($dollaramountregex, $tipstring, $dollaramountarray)==1)
-		{
-			$includedollaramount=1;
-			$tipdollaramount=$dollaramountarray[1];
-			
+		if (dollaramountarray):
+			includedollaramount = 1
+			tipdollaramount = dollaramountarray.groups[?]
 			##strip dollar amount of extraneous characters
-			$tipdollaramount= trim($tipdollaramount, "$ USDusd,");
-			print "<br>dollar amount:$tipdollaramount";
-		}
+			tipdollaramount = trim($tipdollaramount, "$ USDusd,"); #todo python equivalent
+			print ("<br>dollar amount:$tipdollaramount")
 
 		##does $tipstring contain bitcoinamount?
-		if (preg_match($bitcoinamountregex, $tipstring, $bitcoinamountarray)==1)
-		{
-			$includebitcoinamount=1;
-			$tipbitcoinamount=$bitcoinamountarray[1];
+		if (bitcoinamountarray)
+			includebitcoinamount = 1
+			tipbitcoinamount = bitcoinamountarray.groups[?]
 			
 			##strip of the special symbol
-			$tipbitcoinamount = str_replace("&amp;#3647;", "", $tipbitcoinamount);
+			tipbitcoinamount = str_replace("&amp;#3647;", "", $tipbitcoinamount) #todo python
 			
 			##strip bitcoin amount of extraneous characters
-			$tipbitcoinamount= trim($tipbitcoinamount, "B BTCbtc,");
-			print "<br>bitcoinamount:$tipbitcoinamount";
-		}
+			tipbitcoinamount = trim($tipbitcoinamount, "B BTCbtc,"); #todo python
+			print ("<br>bitcoinamount:$tipbitcoinamount")
 
 
 		
 		##does $tipstring contain amount keyword "all"?
-		if (preg_match($allregex, $tipstring, $allarray)==1)
-		{
-		
+		if (allarray):
+			senderbalance = getuserbalance(tipsenderusername)
+			amount = (senderbalance - 0.0005)
+			amount = round(amount, 8)
+			tipbitcoinamount = amount
+			includebitcoinamount = 1
 
-				$senderbalance=getuserbalance($tipsenderusername);
-				$amount=($senderbalance - 0.0005);
-				$amount=round($amount, 8);
-				$tipbitcoinamount=$amount;
-				$includebitcoinamount=1;
-			
-			
-		}
 		
 		
 
@@ -1017,44 +1006,33 @@ def find_message_command(themessage): #array
 		
 		
 		##does $tipstring contain verify?
-		if (preg_match($verifyregex, $tipstring, $verifyarray)==1)
-		{
-			$includeverify=0;
-			$tipverify=$verifyarray[2];
-			print "<br>verify:$tipverify";
-		}
+		if (verifyarray)
+			tipverify = verifyarray.groups[?]
+			if (tipverify == "noverify")
+				includeverify = 0
+			else:
+				includeverify = 1
+			
+			print ("<br>verify:$tipverify")
 
-		print "<br>Now getting the information gaps.";
+		print ("<br>Now getting the information gaps.")
 		##based on what the tip command contains, fill in the information gaps.
 
-		if ($includereceiveraddress==0 && $includereceiverusername==0 && $tiptype=="comment")
-		{
-		
-
-		}
-
-		if ($includebitcoinamount==1)
-		{
-		
-			$tipdollaramount=$tipbitcoinamount*$exchangerate;
+		if (includebitcoinamount == 1):
+			tipdollaramount = tipbitcoinamount*exchangerate
 			##round to 2 decimals
-			$tipdollaramount=round($tipdollaramount,2);
-			print "<br>dollaramount:$tipdollaramount";
-		}
-		else
-		{
-			$tipbitcoinamount=$tipdollaramount/$exchangerate;
+			tipdollaramount = round(tipdollaramount,2)
+			print ("<br>dollaramount:$tipdollaramount")
+		else:
+			tipbitcoinamount = tipdollaramount/exchangerate
 			##round to 8 decimals
-			$tipbitcoinamount=round($tipbitcoinamount,8);
-			print "<br>bitcoinamount:$tipbitcoinamount";
-		}
+			tipbitcoinamount = round(tipbitcoinamount,8)
+			print ("<br>bitcoinamount:$tipbitcoinamount")
 
-		if ($includereceiverusername==1)
-		{
+		if (includereceiverusername == 1)
 			##get $receiveraddress from table if user is in table_users
-			$tipreceiveraddress=getuseraddress($tipreceiverusername);
+			tipreceiveraddress = getuseraddress(tipreceiverusername);
 			print "<br>receiveraddress:$tipreceiveraddress";
-		}
 
 
 
@@ -1062,73 +1040,60 @@ def find_message_command(themessage): #array
 		##check conditions to cancel the transaction and return error message
 
 		##transaction amount is 0 BTC
-		if ($tipbitcoinamount==0)
-		{
-			$cancelmessage="You cannot send an amount of 0. That is just silly.";
+		if (tipbitcoinamount == 0):
+			cancelmessage="You cannot send an amount of 0. That is just silly."
 			##cancel transaction
-			$validtransaction="no";
-
-		}
+			validtransaction="no"
 
 		##Sender doesn't have (BTC amount +0.0005) in their account
 		##get sender balance
-		$totalneeded=$tipbitcoinamount+0.0005;
-		$senderbalance=getuserbalance($tipsenderusername);
-		if ($totalneeded>$senderbalance)
-		{
-			$cancelmessage="You do not have enough in your account.  You have $senderbalance BTC, but need $totalneeded BTC (do not forget about the 0.0005 BTC fee per transaction).";
+		totalneeded = tipbitcoinamount+0.0005
+		senderbalance = getuserbalance(tipsenderusername)
+		if (totalneeded>senderbalance):
+			cancelmessage="You do not have enough in your account.  You have $senderbalance BTC, but need $totalneeded BTC (do not forget about the 0.0005 BTC fee per transaction)."
 			##cancel transaction
-			$validtransaction="no";
-		}
+			validtransaction="no"
 
 		##Not in supported subreddit
-		if ( $tiptype=="comment" && (checksubreddit($tipsubreddit)==0) && (getusergiftamount($tipsenderusername)<2) )
-		{
-			$cancelmessage="The $tipsubreddit subreddit is not currently supported.";
+		if ( tiptype=="comment" and (checksubreddit(tipsubreddit)==0) and (getusergiftamount(tipsenderusername)<2) ):
+			cancelmessage="The $tipsubreddit subreddit is not currently supported."
 			##cancel transaction
-			$validtransaction="no";
-		}
+			validtransaction="no"
 		
 		##Sender is Banned
-		if (checkuser($tipsenderusername)==0 && $tipsenderusername!="")
-		{
-			$cancelmessage="You are not allowed to send or receive money.";
+		if (checkuser(tipsenderusername)==0 and tipsenderusername!=""):
+			cancelmessage="You are not allowed to send or receive money."
 			##cancel transaction
-			$validtransaction="no";
-		}
+			validtransaction="no"
 
 		##Receiver is Banned
-		if (checkuser($tipreceiverusername)==0 && $tipreceiverusername!=""){
+		if (checkuser(tipreceiverusername)==0 and tipreceiverusername!=""){
 
-			if (checkuser($tipreceiverusername)==0){
-				$cancelmessage="The user $tipreceiverusername is not allowed to send or receive money.";
+			if (checkuser(tipreceiverusername)==0):
+				cancelmessage="The user $tipreceiverusername is not allowed to send or receive money."
 				##cancel transaction
-				$validtransaction="no";
-			}
-
-		}
+				validtransaction="no"
 		
-		if ($tipreceiverusername==$tipsenderusername){
-		$cancelmessage="You cannot send any amount to yourself, that is just silly.";
-		##canceltransaction
-		$validtransaction="no";
-		}
-		
-		if ($tipreceiverusername=="" && $tipreceiveraddress==""){
-			$cancelmessage="You must specify a recipient username or bitcoin address";
+		if (tipreceiverusername==tipsenderusername):
+			cancelmessage="You cannot send any amount to yourself, that is just silly."
 			##canceltransaction
-			$validtransaction="no";
-		}
+			validtransaction="no"
+			
+		
+		if (tipreceiverusername=="" and $tipreceiveraddress==""):
+			cancelmessage="You must specify a recipient username or bitcoin address";
+			##canceltransaction
+			validtransaction="no";
 
 
-print "<br>validtransaction:$validtransaction";
-		print "<br>cancel message:$cancelmessage";
+		print ("<br>validtransaction:$validtransaction")
+		print ("<br>cancel message:$cancelmessage")
 		
 		
 		
 		##do transaction if valid
 		##then send any messages that need sending.
-				if ($validtransaction!="no"){
+		if (validtransaction != "no"):
 
 
 			##tipreceiverusername
@@ -1146,167 +1111,131 @@ print "<br>validtransaction:$validtransaction";
 			##tipstatusmessage
 			
 			##returns "cancelled" or "pending"
-$transactionstatus=dotransaction($tipsenderusername,$tipsenderaddress,$tipreceiverusername,$tipreceiveraddress,$tipbitcoinamount,$tipdollaramount,$tiptype,$tipurl,$tiptimestamp,$tipsubreddit,$tipverify,$tipstatus,$tipstatusmessage);
+			transactionstatus = dotransaction(tipsenderusername,tipsenderaddress,tipreceiverusername,tipreceiveraddress,tipbitcoinamount,tipdollaramount,tiptype,tipurl,tiptimestamp,tipsubreddit,tipverify,tipstatus,tipstatusmessage);
 			
-			if ($transactionstatus=="cancelled")
-			$cancelmessage="There was an error that probably was not your fault.";
+			if (transactionstatus=="cancelled"):
+				cancelmessage="There was an error that probably was not your fault."
 			
 			##based on status, create end result fail/success
-			if ($transactionstatus=="cancelled")
-			$transactionresult="fail";
-			else
-			$transactionresult="success";
+			if (transactionstatus=="cancelled"):
+				transactionresult="fail"
+			else:
+				transactionresult="success"
+		else:
+			$transactionresult="fail"
 			
-			}
-			else
-			{
-			$transactionresult="fail";
-			}
-			
-			
-##by the time we get here, the following variables must be defined:
+		##by the time we get here, the following variables must be defined:
 
-##tiptype yes
-##includeverify yes
-##transactionresult
-##commentid if type=comment
-
-print "<br>transactionresult:$transactionresult";
-print "<br>tipreceiverusername:$tipreceiverusername";
-print "<br>tipreceiveraddress:$tipreceiveraddress";
-print "<br>includeverify:$includeverify";
-print "<br>tiptype:$tiptype";
-
-if ($transactionresult!=""){
+		##tiptype yes
+		##includeverify yes
+		##transactionresult
+		##commentid if type=comment
 
 
-	if ($tipreceiverusername=="")
-		$tipreceiver=$tipreceiveraddress;
-	else
-		$tipreceiver=$tipreceiverusername;
-		
-
-    
-    if ($transactionresult=="success"){
-        
-                        $rejectverify="Verified";
-            $strikethrough="";
-    }else if ($transactionresult=="fail")
-    {
-                        $rejectverify="Failed";
-            $strikethrough="~~";
-    }
-    
-	 $message="Transaction $rejectverify!\n\n$strikethrough**$tipsenderusername --> $tipbitcoinamount BTC *(~$$tipdollaramount USD)* --> $tipreceiver**$strikethrough";
-	 
-	 	
-		if ($transactionresult=="success")
-		$subject="Successful Bitcointip Notice";
-
-		if ($transactionresult=="fail")
-		$subject="Failed Bitcointip Notice";
-		
-	 
-	 
-	if ( ($transactionresult=="fail") || ($includeverify==1) ){
-	##PM Sender
-	
-	##only send cancelreason to sender
-	$sendermessage=$message."\n\n".$cancelmessage;
-	
-	
-		$senderaddress=getuseraddress($tipsenderusername);
-		$senderbalance=getuserbalance($tipsenderusername);
-		$senderUSDbalance=$senderbalance*getExchangeRate("mtgoxUSD");
-		$senderbalance=number_format($senderbalance, 8, ".", "");
-		$senderUSDbalance=number_format($senderUSDbalance, 2, ".", "");
-	
-	$sendermessage.="\n\n---\n\n|||
-|:|:|
-| Account Owner: | **$tipsenderusername** |
-| Deposit Address: | **$senderaddress** |
-| Address Balance: | **$senderbalance BTC** *(~$$senderUSDbalance USD)* |"."\n\n[About Bitcointip](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/) (BETA!)";
-	
-	
-		
-				print "<br>submitting a message";
-
-		mysql_query("INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 
-	VALUES ('', 'message', '$tipsenderusername', '$subject', '$sendermessage', '', '', '0', '".time()."')",$con);
-
-	}
-	
-	if ($transactionresult=="success" && $tipreceiverusername!="")
-	{
-	##if the transaction went through, send a message to the receiver if there is one.
-	
-$receiveraddress=getuseraddress($tipreceiverusername);
-		$receiverbalance=getuserbalance($tipreceiverusername);
-		$receiverUSDbalance=$receiverbalance*getExchangeRate("mtgoxUSD");
-		$receiverbalance=number_format($receiverbalance, 8, ".", "");
-		$receiverUSDbalance=number_format($receiverUSDbalance, 2, ".", "");
-	
-	$receivermessage=$message."\n\n---\n\n|||
-|:|:|
-| Account Owner: | **$tipreceiverusername** |
-| Deposit Address: | **$receiveraddress** |
-| Address Balance: | **$receiverbalance BTC** *(~$$receiverUSDbalance USD)* |"."\n\n[About Bitcointip](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/) (BETA!)";
-		 
-		 		mysql_query("INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 
-	VALUES ('', 'message', '$tipreceiverusername', '$subject', '$receivermessage', '', '', '0', '".time()."')",$con);
-	
-	}
-
-
-}
+		if (transactionresult!=""):
+			if (tipreceiverusername==""):
+				tipreceiver = tipreceiveraddress
+			else:
+				tipreceiver = tipreceiverusername
+				
 
 			
-	return "";
-	}
-	else
-	{
-		##/this comment contains no "+bitcointip" or a "+1 internet"
+			if (transactionresult == "success"):
+				rejectverify = "Verified"
+				strikethrough=""
+			else if (transactionresult == "fail":
+				rejectverify = "Failed"
+				strikethrough = "~~"
+			
+			 message = "Transaction $rejectverify!\n\n$strikethrough**$tipsenderusername --> $tipbitcoinamount BTC *(~$$tipdollaramount USD)* --> $tipreceiver**$strikethrough"
+			 
+				
+			if (transactionresult == "success")"
+				subject = "Successful Bitcointip Notice"
 
-	}
-	
-	
-	
-		##HELP
-		if(preg_match('/HELP/i', $body, $command) && returnstring=="")
-	{
-	returnstring="Check the [Help Page](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).";
-	}
-	
-	
-		##NO COMMAND DO YOU NEED HELP?
-	##"blah blah blah"
-	if (returnstring==""){
+			if (transactionresult == "fail"):
+				subject = "Failed Bitcointip Notice"
+				
+			 
+			 
+			if ( (transactionresult == "fail") || (includeverify == 1) ):
+				##PM Sender
+				
+				##only send cancelreason to sender for privacy
+				sendermessage = message + "\n\n" + cancelmessage
+			
+			
+				senderaddress = getuseraddress(tipsenderusername)
+				senderbalance = getuserbalance(tipsenderusername)
+				senderUSDbalance = senderbalance*getExchangeRate("mtgoxUSD")
+				senderbalance = number_format($senderbalance, 8, ".", "")#todo python
+				senderUSDbalance = number_format($senderUSDbalance, 2, ".", "") #todo python
+			
+				##FOOTER
+				sendermessage += "\n\n---\n\n|||\n|:|:|\n| Account Owner: | **$tipsenderusername** |\n| Deposit Address: | **$senderaddress** |\n| Address Balance: | **$senderbalance BTC** *(~$$senderUSDbalance USD)* \n|"."\n\n[About Bitcointip](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/) (BETA!)"
+			
+			
+				
+			print "<br>outboxing a message";
+			#todo mysql python
+			mysql_query("INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 
+			VALUES ('', 'message', '$tipsenderusername', '$subject', '$sendermessage', '', '', '0', '".time()."')",$con)
+			
+			if (transactionresult=="success" and tipreceiverusername!=""):
+				##if the transaction went through, send a message to the receiver if there is one.
+			
+				receiveraddress = getuseraddress(tipreceiverusername)
+				receiverbalance = getuserbalance(tipreceiverusername)
+				receiverUSDbalance = receiverbalance*getExchangeRate("mtgoxUSD")
+				receiverbalance = number_format(receiverbalance, 8, ".", "")#todo python
+				receiverUSDbalance = number_format(receiverUSDbalance, 2, ".", "")#todo python
+			
+				##FOOTER
+				receivermessage = message + "\n\n---\n\n|||\n|:|:|\n| Account Owner: | **$tipreceiverusername** |\n| Deposit Address: | **$receiveraddress** |\n| Address Balance: | **$receiverbalance BTC** *(~$$receiverUSDbalance USD)* |"."\n\n[About Bitcointip](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/) (BETA!)";
+				 
+				#todo mysql python
+				mysql_query("INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) VALUES ('', 'message', '$tipreceiverusername', '$subject', '$receivermessage', '', '', '0', '".time()."')",$con);
+
+			return ""
 		
-		returnstring="This is the bitcointip bot.  No command was found in your message.\n\nTo fund your account, send bitcoins to your Deposit Address.\n\nFor help with commands, see [This Page](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).\n\n*Replies from the bot take on average 7.5 minutes but may take 30 minutes or more in some cases.*\n\n*Deposits are updated once per hour.*";
+		
+		
+			##HELP
+			if(preg_match('/HELP/i', $body, $command) && returnstring=="")
+		{
+		returnstring="Check the [Help Page](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).";
+		}
+		
+		
+			##NO COMMAND DO YOU NEED HELP?
+		##"blah blah blah"
+		if (returnstring==""){
+			
+			returnstring="This is the bitcointip bot.  No command was found in your message.\n\nTo fund your account, send bitcoins to your Deposit Address.\n\nFor help with commands, see [This Page](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).\n\n*Replies from the bot take on average 7.5 minutes but may take 30 minutes or more in some cases.*\n\n*Deposits are updated once per hour.*";
+			
+		}
+		
+		
+
+		##ALL MESSAGES ADD FOOTER TO END OF ANY MESSAGE
+		
+	$authorbalance=getuserbalance($author);
+	$authoraddress=getuseraddress($author);
+		
+		$authorbalance=number_format($authorbalance, 8, ".", "");
+		$authorUSDbalance=number_format($authorUSDbalance, 2, ".", "");
+		
+		returnstring.="\n\n---\n\n|||
+	|:|:|
+	| Account Owner: | **$author** |
+	| Deposit Address: | **$authoraddress** |
+	| Address Balance: | **$authorbalance BTC** *(~$$authorUSDbalance USD)* |"."\n\n
+	[About Bitcointip](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/) (BETA!)";
+
+		
+		return returnstring;
 		
 	}
-	
-	
-
-	##ALL MESSAGES ADD FOOTER TO END OF ANY MESSAGE
-	
-$authorbalance=getuserbalance($author);
-$authoraddress=getuseraddress($author);
-	
-	$authorbalance=number_format($authorbalance, 8, ".", "");
-	$authorUSDbalance=number_format($authorUSDbalance, 2, ".", "");
-	
-	returnstring.="\n\n---\n\n|||
-|:|:|
-| Account Owner: | **$author** |
-| Deposit Address: | **$authoraddress** |
-| Address Balance: | **$authorbalance BTC** *(~$$authorUSDbalance USD)* |"."\n\n
-[About Bitcointip](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/) (BETA!)";
-
-	
-	return returnstring;
-	
-}
 
 
 
