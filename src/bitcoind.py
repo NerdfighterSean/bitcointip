@@ -1,5 +1,15 @@
+from functools import wraps
 
-
+def my_decorator(f):
+	@wraps(f)
+	def wrapper(*args, **kwds):
+		try:
+			return f(*args, **kwds)
+		except Exception as e:
+			print ("Error: %s" % e.error['message'])
+			return "error"
+	return wrapper
+	
 '''
 addmultisigaddress
 <nrequired> <'["key","key"]'> [account]
@@ -7,12 +17,9 @@ Add a nrequired-to-sign multisignature address to the wallet. Each key is a bitc
 N
 Returns:
 '''
+@my_decorator
 def addmultisigaddress(nrequired, keys, account="DEFAULT ACCOUNT"):
-	try:
 		return access.addmultisigaddress(nrequired, keys, account)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 backupwallet
@@ -22,12 +29,9 @@ N
 Returns:
 "None"
 '''
+@my_decorator
 def backupwallet(destination):
-	try:
 		return access.backupwallet(destination)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 createrawtransaction
@@ -36,13 +40,10 @@ version 0.7 Creates a raw transaction spending given inputs.
 N
 Returns:
 '''
+@my_decorator
 def createrawtransaction(txidvout, addressamount):
-	try:
 		return access.createrawtransaction(txidvout, addressamount)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
-
+		
 '''
 decoderawtransaction
 <hex string>
@@ -50,12 +51,9 @@ version 0.7 Produces a human-readable JSON object for a raw transaction.
 N
 Returns:
 '''
+@my_decorator
 def decoderawtransaction(hexstring):
-	try:
 		return access.decoderawtransaction(hexstring)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 dumpprivkey
@@ -65,12 +63,9 @@ Y
 Returns:
 L4Qbhp6g9KgcMfZbFZifqpoAmW5p59kGsm5MMFe8jdrpS4CW3TwH
 '''
+@my_decorator
 def dumpprivkey(bitcoinaddress):
-	try:
 		return access.dumpprivkey(bitcoinaddress)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 encryptwallet
@@ -80,12 +75,9 @@ N
 Returns:
 wallet encrypted; Bitcoin server stopping, restart to run with encrypted wallet.  The keypool has been flushed, you need to make a new backup.
 '''
+@my_decorator
 def encryptwallet(passphrase):
-	try:
 		return access.encryptwallet(passphrase)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getaccount
@@ -95,12 +87,9 @@ N
 Returns:
 Billybob
 '''
+@my_decorator
 def getaccount(bitcoinaddress):
-	try:
 		return access.getaccount(bitcoinaddress)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getaccountaddress
@@ -110,12 +99,9 @@ N
 Returns:
 15gDL1qBugojebw2KWrwjk4qkuz9npTB4X
 '''
+@my_decorator
 def getaccountaddress(account):
-	try:
 		return access.getaccountaddress(account)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getaddressesbyaccount
@@ -125,12 +111,9 @@ N
 Returns:
 ['19b1sQojd9t5PHYdArS7hFUV7vzshNGxuk', '14DDpewYAVTSKmPDLXkUs38L794eqGMuvc', '16Dm5XHzxvmea2oTrMK6wbeWg1vXjcSucd', '1LPr67nfnouTsfZYCbQ8kkTkgCimdK41Po', '19rHqHREBfXtGzfHFCXbAJhmhrJY1e2pT1', '19ouPe7SyfrjKwV6mBmFQUr7WrhP9Ab4CW', '17cE6gYZeqiHPC9fLEoR7pQckw5N3WKz2c', '1Km5mXNR7Gj87E9fyp3u6EJU9TZTzqa6PZ', '15gDL1qBugojebw2KWrwjk4qkuz9npTB4X', '1HzQowH3tdkTf9HUQ1yGoMeNhVRG2GKYJM']
 '''
+@my_decorator
 def getaddressesbyaccount(account):
-	try:
 		return access.getaddressesbyaccount(account)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getbalance
@@ -141,12 +124,9 @@ N
 Returns:
 0E-8
 '''
+@my_decorator
 def getbalance(account, minconf=0):
-	try:
 		return access.getbalance(account, minconf)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getblock
@@ -155,12 +135,9 @@ Returns information about the given block hash.
 N
 Returns:
 '''
+@my_decorator
 def getblock(hash):
-	try:
 		return access.getblock(hash)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getblockcount
@@ -169,12 +146,9 @@ N
 Returns:
 205775
 '''
+@my_decorator
 def getblockcount():
-	try:
 		return access.getblockcount()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getblockhash
@@ -183,12 +157,9 @@ Returns hash of block in best-block-chain at <index>
 N
 Returns:
 '''
+@my_decorator
 def getblockhash(index):
-	try:
 		return access.getblockhash(index)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getconnectioncount
@@ -197,12 +168,9 @@ N
 Returns:
 41
 '''
+@my_decorator
 def getconnectioncount():
-	try:
 		return access.getconnectioncount()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getdifficulty
@@ -211,12 +179,9 @@ N
 Returns:
 3304356.39299034
 '''
+@my_decorator
 def getdifficulty():
-	try:
 		return access.getdifficulty()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getgenerate
@@ -225,12 +190,9 @@ N
 Returns:
 False
 '''
+@my_decorator
 def getgenerate():
-	try:
 		return access.getgenerate()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 gethashespersec
@@ -239,12 +201,9 @@ N
 Returns:
 0
 '''
+@my_decorator
 def gethashespersec():
-	try:
 		return access.gethashespersec()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getinfo
@@ -253,12 +212,9 @@ N
 Returns:
 {'balance': Decimal('0E-8'), 'keypoolsize': 101, 'unlocked_until': 1351649589, 'testnet': False, 'version': 79900, 'walletversion': 60000, 'difficulty': Decimal('3304356.39299034'), 'protocolversion': 60002, 'connections': 12, 'proxy': '', 'errors': '', 'paytxfee': Decimal('0E-8'), 'keypoololdest': 1351642673, 'blocks': 205776}
 '''
+@my_decorator
 def getinfo():
-	try:
 		return access.getinfo()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getmemorypool
@@ -274,12 +230,9 @@ If [data] is specified, tries to solve the block and returns true if it was succ
 N
 Returns:
 '''
+@my_decorator
 def getmemorypool(data=""):
-	try:
 		return access.getmemorypool(data)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getmininginfo
@@ -288,12 +241,9 @@ N
 Returns:
 {'difficulty': Decimal('3304356.39299034'), 'generate': False, 'genproclimit': -1, 'pooledtx': 1127, 'blocks': 205775, 'errors': '', 'currentblocksize': 0, 'currentblocktx': 0, 'hashespersec': 0, 'testnet': False}
 '''
+@my_decorator
 def getmininginfo():
-	try:
 		return access.getmininginfo()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getnewaddress
@@ -303,12 +253,9 @@ N
 Returns:
 1J5UXyx6EyWz57nyCRGkNpLTFB8tDV7fE8
 '''
+@my_decorator
 def getnewaddress(account="DEFAULT ACCOUNT"):
-	try:
 		return access.getnewaddress(account)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getpeerinfo
@@ -317,12 +264,9 @@ N
 Returns:
 [{'conntime': 1351585714, 'banscore': 0, 'addr': '192.168.1.1:8333', 'version': 60002, 'lastsend': 1351641320, 'startingheight': 205678, 'services': '00000001', 'subver': '/Satoshi:0.7.0.99/', 'lastrecv': 1351641317, 'releasetime': 0, 'inbound': False}, {'conntime': 1351593601, 'banscore': 0, 'addr': '192.168.1.2:8333', 'version': 60002, 'lastsend': 1351641320, 'startingheight': 205692, 'services': '00000001', 'subver': '/Satoshi:0.7.0.3/', 'lastrecv': 1351641320, 'releasetime': 0, 'inbound': False}]
 '''
+@my_decorator
 def getpeerinfo():
-	try:
 		return access.getpeerinfo()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getrawmempool
@@ -331,12 +275,9 @@ N
 Returns:
 ['fec15caa099ff0d87b38376e8236a1b503a3157b88c136620680782c8728bb10', 'fed226054c79db82f5608358ab8e41145ebfb05cee0848c560f5c0e6fb87f074', 'fefcd04d7a06eba925057ce02405856b5be375bad1d508d1722a51e96c2cd5a5', 'ff51e6605cdae2f905133e2ea435b31d7899c1a3ca8eb6bcb594dbbfe6d8a779', 'ffcc536a9e5cb3a1512ddee229b51fefa108fd82cc44c4bf55e114a6dc91688d', 'ffd413b686c1cf7c60ccfb47874b8fefd270faa54a99897c3711170335ab77e6']
 '''
+@my_decorator
 def getrawmempool():
-	try:
 		return access.getrawmempool()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getrawtransaction
@@ -345,12 +286,9 @@ version 0.7 Returns raw transaction representation for given transaction id.
 N
 Returns:
 '''
+@my_decorator
 def getrawtransaction(txid, verbose=0):
-	try:
 		return access.getrawtransaction(txid, verbose)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getreceivedbyaccount
@@ -360,12 +298,9 @@ N
 Returns:
 0E-8
 '''
+@my_decorator
 def getreceivedbyaccount(account="DEFAULT ACCOUNT", minconf=0):
-	try:
 		return access.getreceivedbyaccount(account, minconf)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getreceivedbyaddress
@@ -375,12 +310,9 @@ N
 Returns:
 0E-8
 '''
+@my_decorator
 def getreceivedbyaddress(bitcoinaddress, minconf=0):
-	try:
 		return access.getreceivedbyaddress(bitcoinaddress, minconf)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 gettransaction
@@ -399,12 +331,9 @@ Returns an object about the given transaction containing:
 N
 Returns:
 '''
+@my_decorator
 def gettransaction(txid):
-	try:
 		return access.gettransaction(txid)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 getwork
@@ -418,12 +347,9 @@ If [data] is specified, tries to solve the block and returns true if it was succ
 N
 Returns: 
 '''
+@my_decorator
 def getwork(data):
-	try:
 		return access.getwork(data)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 help
@@ -432,12 +358,9 @@ List commands, or get help for a command.
 N
 Returns:
 '''
+@my_decorator
 def help(command=""):
-	try:
 		return access.help(command)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 importprivkey
@@ -446,12 +369,9 @@ Adds a private key (as returned by dumpprivkey) to your wallet.
 Y
 Returns:
 '''
+@my_decorator
 def importprivkey(bitcoinprivkey, label="DEFAULT ACCOUNT"):
-	try:
 		return access.importprivkey(bitcoinprivkey, label)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 keypoolrefill
@@ -460,12 +380,9 @@ Y
 Returns:
 None
 '''
+@my_decorator
 def keypoolrefill():
-	try:
 		return access.keypoolrefill()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 listaccounts
@@ -475,12 +392,9 @@ N
 Returns:
 {'': Decimal('0E-8'), 'Billybob': Decimal('0E-8'), 'DEFAULT ACCOUNT': Decimal('0E-8')}
 '''
+@my_decorator
 def listaccounts(minconf=0):
-	try:
 		return access.listaccounts(minconf)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 listreceivedbyaccount
@@ -493,12 +407,9 @@ N
 Returns:
 [{'amount': Decimal('0E-8'), 'confirmations': 0, 'account': ''}, {'amount': Decimal('0E-8'), 'confirmations': 0, 'account': 'Billybob'}]
 '''
+@my_decorator
 def listreceivedbyaccount(minconf=0, includeempty=False):
-	try:
 		return access.listreceivedbyaccount(minconf, includeempty)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 listreceivedbyaddress
@@ -513,12 +424,9 @@ N
 Returns:
 [{'account': 'Billybob', 'confirmations': 0, 'amount': Decimal('0E-8'), 'address': '19b1sQojd9t5PHYdArS7hFUV7vzshNGxuk'}, {'account': 'Billybob', 'confirmations': 0, 'amount': Decimal('0E-8'), 'address': '14DDpewYAVTSKmPDLXkUs38L794eqGMuvc'}, {'account': '', 'confirmations': 0, 'amount': Decimal('0E-8'), 'address': '1AVAnwPykoPkTBsocJWiqEsZ9AxZohNeqM'}, {'account': '', 'confirmations': 0, 'amount': Decimal('0E-8'), 'address': '1J96Hgj4AvrMJkmQ7nXj8PasyyKYTapzX8'}]
 '''
+@my_decorator
 def listreceivedbyaddress(minconf=0, includeempty=False):
-	try:
 		return access.listreceivedbyaddress(minconf, includeempty)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 listsinceblock
@@ -527,12 +435,9 @@ Get all transactions in blocks since block [blockhash], or all transactions if o
 N
 Returns:
 '''
+@my_decorator
 def listsinceblock(blockhash=0, targetconfirmations=1):
-	try:
 		return access.listsinceblock(blockhash, targetconfirmations)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 listtransactions
@@ -542,12 +447,9 @@ N
 Returns:
 [{'timereceived': 1351652809, 'address': '17DbstW8piamyeMHURS36be2c9iGCZkiD5', 'amount': Decimal('0.10000000'), 'category': 'receive', 'txid': '2b2c0e87dc0d9e834236b79789aef8ee9790bc1d792f8910077b35569f012661', 'account': 'thisistest', 'time': 1351652809, 'confirmations': 0}]
 '''
+@my_decorator
 def listtransactions(account, count=10, after=0):
-	try:
 		return access.listtransactions(account, count, after)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 listunspent
@@ -557,12 +459,9 @@ N
 Returns:
 []
 '''
+@my_decorator
 def listunspent(minconf=0, maxconf=999999):
-	try:
 		return access.listunspent()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 move
@@ -572,11 +471,9 @@ N
 Returns:
 True
 '''
+@my_decorator
 def move(fromaccount, toaccount, amount, minconf=0, comment=""):
-	try:
 		return access.move(fromaccount,toaccount,amount,minconf,comment)
-	except:
-		return "error"
 
 '''
 sendfrom
@@ -586,12 +483,9 @@ Y
 Returns:
 8e9425259e7d03d60a7c8e51a952dc74f6e99fdc5261ae6592da345873ede2f2
 '''
+@my_decorator
 def sendfrom(fromaccount, tobitcoinaddress, amount, minconf=0, comment="", commentto=""):
-	try:
 		return access.sendfrom(fromaccount, tobitcoinaddress, amount, minconf, comment, commentto)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 sendmany
@@ -600,12 +494,9 @@ amounts are double-precision floating point numbers
 Y
 Returns:
 '''
+@my_decorator
 def sendmany(fromaccount, addressesamounts, minconf=0, comment=""):
-	try:
 		return access.sendmany(fromaccount, addressesamounts, minconf, comment)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 sendrawtransaction
@@ -614,12 +505,9 @@ version 0.7 Submits raw transaction (serialized, hex-encoded) to local node and 
 N
 Returns:
 '''
+@my_decorator
 def sendrawtransaction(hexstring):
-	try:
 		return access.sendrawtransaction(hexstring)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 sendtoaddress
@@ -628,12 +516,9 @@ sendtoaddress
 Y
 Returns:
 '''
+@my_decorator
 def sendtoaddress(bitcoinaddress, amount, comment="", commentto=""):
-	try:
 		return access.sendtoaddress(bitcoinaddress, amount, comment, commentto)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 setaccount
@@ -643,12 +528,9 @@ N
 Returns:
 None
 '''
+@my_decorator
 def setaccount(bitcoinaddress, account="DEFAULT ACCOUNT"):
-	try:
 		return access.setaccount(bitcoinaddress, account)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 setgenerate
@@ -658,12 +540,9 @@ Generation is limited to [genproclimit] processors, -1 is unlimited.
 N
 Returns:
 '''
+@my_decorator
 def setgenerate(generate, genproclimit=1):
-	try:
 		return access.setgenerate(generate, genproclimit)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 signmessage
@@ -672,12 +551,9 @@ Sign a message with the private key of an address.
 Y
 Returns:
 '''
+@my_decorator
 def signmessage(bitcoinaddress, message):
-	try:
 		return access.signmessage(bitcoinaddress, message)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 signrawtransaction
@@ -686,12 +562,9 @@ version 0.7 Adds signatures to a raw transaction and returns the resulting raw t
 Y/N
 Returns:
 '''
+@my_decorator
 def signrawtransaction(txidvout, privatekeys):
-	try:
 		return access.signrawtransaction(txidvout, privatekeys)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 settxfee
@@ -701,25 +574,19 @@ N
 Returns:
 True
 '''
+@my_decorator
 def settxfee(amount):
-	try:
 		return access.settxfee(amount)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
-
+		
 '''
 stop
 Stop bitcoin server.	 
 N
 Returns:
 '''
+@my_decorator
 def stop():
-	try:
 		return access.stop()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 validateaddress
@@ -729,12 +596,9 @@ N
 Returns:
 {'address': '1AVAnwPykoPkTBsocJWiqEsZ9AxZohNeqM', 'ismine': True, 'account': '', 'iscompressed': True, 'isvalid': True, 'pubkey': '03939b467ce20e52b8048339d3d7ab80f7a661f0b1c81e6c9e1ec9e6523d65d74d', 'isscript': False}
 '''
+@my_decorator
 def validateaddress(bitcoinaddress):
-	try:
 		return access.validateaddress(bitcoinaddress)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 verifymessage
@@ -742,12 +606,9 @@ verifymessage
 N
 Returns:
 '''
+@my_decorator
 def verifymessage(bitcoinaddress, signature, message):
-	try:
 		return access.verifymessage(bitcoinaddress, signature, message)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 walletlock
@@ -756,12 +617,9 @@ N
 Returns:
 None
 '''
+@my_decorator
 def walletlock():
-	try:
 		return access.walletlock()
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 walletpassphrase
@@ -771,12 +629,9 @@ N
 Returns:
 None
 '''
+@my_decorator
 def walletpassphrase(passphrase, timeout):
-	try:
 		return access.walletpassphrase(passphrase, timeout)
-	except Exception as e:
-		print ("Error: %s" % e.error['message'])
-		return "error"
 
 '''
 walletpassphrasechange
@@ -785,27 +640,19 @@ Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.
 N
 Returns:
 '''
+@my_decorator
 def walletpassphrasechange(oldpassphrase, newpassphrase):
-	try:
 		return access.walletpassphrasechange(oldpassphrase, newpassphrase)
-	except:
-		return "error"
-		
-		
-		
+
 '''
 transact (special call to handle change correctly)
 <fromthing> <tothing> <amount>
-Sends amount from fromthing to tothing and sends change back to fromthing.  things may be either accounts or addresses.
+Sends amount from fromthing to tothing.  things may be either accounts or addresses.  Change will be sent back to fromthing's account.
 Y
 Returns:
 4db570957a740124c224f6035759ab9f484f1d32ce4b73a13ce7a3015c9c4bc8
 '''
 def transact(fromthing, tothing, amount):
-	
-	print ("fromthing ", fromthing)
-	print ("tothing ", tothing)
-	print ("amount ",amount)
 	
 	#get fromaccount from fromthing
 	if (validateaddress(fromthing)['isvalid'] == True):
@@ -813,39 +660,25 @@ def transact(fromthing, tothing, amount):
 	else:
 		fromaccount = fromthing
 		
-	print ("fromaccount", fromaccount)
-		
 	#get toaddressA from tothing
 	if (validateaddress(tothing)['isvalid'] == False):
 		toaddressA = getaddressesbyaccount(tothing)[0]
 	else:
 		toaddressA = tothing
 		
-	print ("toaddressA ",toaddressA)
-	
 	#send change back to address of fromaccount
 	toaddressB = getaddressesbyaccount(fromaccount)[0]
 	
-	print ("toaddressB", toaddressB)
-	
 	balance = float(getbalance(fromaccount))
-	
-	print ("balance", balance)
-	
 	amountA = amount
 	amountB = balance -amountA -0.0005
-	
 	amountA = round(amountA,8)
 	amountB = round(amountB,8)
-	
-	print ("amountA", amountA)
-	print ("amountB", amountB)
 	
 	recipients = { toaddressA:amountA
                  , toaddressB:amountB
                  }
 
-	
 	txid = sendmany(fromaccount, recipients, minconf=0)
 	return txid
 	
