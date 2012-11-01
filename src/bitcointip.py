@@ -1949,8 +1949,8 @@ jsonRPCClientString = "http://"+decBITCOINlogin+":"+decBITCOINpass"+@"+decBITCOI
 bitcoind.access = ServiceProxy(jsonRPCClientString)
 
 # CONNECT TO REDDIT.COM
-reddit = praw.Reddit(user_agent = "bitcointip bot by /u/nerdfightersean")
-reddit.login(decredditbotusername, decredditbotpassword)
+reddit = praw.Reddit(user_agent = "bitcointip bot by /u/nerdfightersean https://github.com/NerdfighterSean/bitcointip")
+reddit.login(decREDDITbotusername, decREDDITbotpassword)
 
 
 looping = 1
