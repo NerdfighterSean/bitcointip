@@ -150,6 +150,7 @@ def getExchangeRate(symbol):
 				exchangerate = jsonarray[i]['close']
 				exchangerate = round(exchangerate,2)
 				exchangeratelastupdated = time()
+				print ("exchange rate updated to: ", exchangerate)
 				return exchangerate
 				
 				
@@ -192,6 +193,7 @@ def adduser(username):
 		sql = "INSERT INTO TEST_TABLE_USERS (user_id, username, address, balance, datejoined) VALUES ('%s', '%s', '%s', '%f', '%d')" % ('', username, newuseraddress, 0.00000000, time())
 		mysqlcursor.execute(sql)
 		mysqlcon.commit()
+		print ("User (%s) added with address (%s)") % (username, newuseraddress)
 
 
 
@@ -254,7 +256,7 @@ def getuseraddress(username):
 
 
 #getusergiftamount
-#getusergiftamount($username) get how much the user has donated to /u/bitcointip
+#getusergiftamount(username) get how much the user has donated to /u/bitcointip
 def getusergiftamount(username):
 
 	$sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (username)
@@ -283,13 +285,11 @@ def userhasredeemedkarma(username):
 	for row in results:
 		alreadyredeemed = 1
 		
-		
-	
 	if (alreadyredeemed == 1):
-		print "user has redeemed karma already."
+		print ("user has redeemed karma already.")
 		return 1
 	else:
-		print "user has not redeemed karma yet.";
+		print ("user has not redeemed karma yet.")
 		return 0
 
 
@@ -314,17 +314,17 @@ def dotransaction(senderusername, senderaddress, receiverusername, receiveraddre
 
 	#returns success message or failure reason
 	
-	print "doing transaction"	
+	print "(doing transaction")
 	
 	#Search for transaction in transaction list to prevent double processing!
 	if ( doestransactionexist(senderusername, receiverusername, timestamp) == 1):
-		print "Transaction does already exist."
-		return "cancelled"
+		print ("Transaction does already exist.")
+		return ("cancelled")
 
 	#submit the transaction to the wallet.
 	statusmessage = bitcoind.transact(senderusername, receiveraddress, bitcoinamount)
 	
-	print "statusmessage: statusmessage"
+	print ("statusmessage: ", statusmessage)
 	
 	#based on the statusmessage, set the status and process.
 	if (statusmessage != "error"):
@@ -354,7 +354,7 @@ def dotransaction(senderusername, senderaddress, receiverusername, receiveraddre
 			mysqlcursor.execute(sql)
 			mysqlcon.commit()
 		
-		print "Transaction Successful"
+		print ("Transaction Successful")
 		
 	else
 		#(statusmessage == "error") the transaction didn't go through right. and is canceled
@@ -390,7 +390,7 @@ def update_transactions():
 
 	
 	
-	print "<br>Last Update Time: lasttransactionsupdatedtimestamp"
+	print ("Last Update Time:", lasttransactionsupdatedtimestamp)
 		
 		
 	##do this once every day
@@ -408,7 +408,7 @@ def update_transactions():
 			receiver = row[3]
 			sender = row[1]
 			timestamp = row[10]
-			transactionamount = row[?]
+			transactionamount = row[5]
 			
 			#get receiver lastactive time
 			sql = "SELECT timestamp FROM TEST_TABLE_RECENT WHERE type='LASTACTIVE_%s'" % (receiver)
@@ -437,20 +437,20 @@ def update_transactions():
 						sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='reversed' WHERE transaction_id='%s'" % (transactionid)
 						mysqlcursor.execute(sql)
 						mysqlcon.commit()
-						print "<br><br>Transaction reversed: $transactionid";
+						print ("<br><br>Transaction reversed: $transactionid")
 					else
 						##the user doesn't have enough to reverse the transaction, they must have spent it in another way.
 						sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
 						mysqlcursor.execute(sql)
 						mysqlcon.commit()
-						print "<br><br>Transaction completed (user already spent funds): $transactionid"
+						print ("<br><br>Transaction completed (user already spent funds): $transactionid")
 				else
 					## the receiver doesn't have enough.  They must have already spent it
 					##mark as completed instead of reversed.
 					sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
 					mysqlcursor.execute(sql)
 					mysqlcon.commit()
-					print "<br><br>Transaction completed (user already spent funds): $transactionid";
+					print ("<br><br>Transaction completed (user already spent funds): $transactionid")
 			
 
 		
@@ -461,22 +461,22 @@ def update_transactions():
 		mysqlcursor.execute(sql)
 		results = mysqlcursor.fetchall()
 		for row in results:
-			lasttransactionsnotifiedtimestamp = row[?]
-			print "<br>Last Notify Time: $lasttransactionsnotifiedtimestamp"
+			lasttransactionsnotifiedtimestamp = row[1]
+			print ("<br>Last Notify Time: $lasttransactionsnotifiedtimestamp")
 		
 		
 	
 		
 		##do notifications weekly, not daily.
 		if ((lasttransactionsnotifiedtimestamp+(notifytransactionsinterval)) <= time.time())
-			print "<br><br>Going through each user to see if need to notify"
+			print ("<br><br>Going through each user to see if need to notify")
 	
 			##go through each user and compile list of pending transactions to them.
 			sql = "SELECT * FROM TEST_TABLE_USERS WHERE 1"
 			mysqlcursor.execute(sql)
 			result = mysqlcursor.fetchall()
 			for row in result:
-				username = row[?]
+				username = row[1]
 				havependingtransaction = 0
 				
 				$sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE receiver_username='%s' AND status='pending' ORDER BY timestamp ASC" % (username)
@@ -484,11 +484,11 @@ def update_transactions():
 				resultb = mysqlcursor.fetchall()
 				for row in resultb:
 					havependingtransaction = 1
-					oldesttransaction = row[?]
+					oldesttransaction = row[10]
 			
-				if ($havependingtransaction==1)
+				if (havependingtransaction == 1)
 				
-					print "<br><br>$username has a pending transaction"
+					print ("<br><br>$username has a pending transaction")
 					message = "One or more of your received tips is pending.  If you do not take action, your account will be charged and the tip will be returned to the sender.  To finalize your ownership of the tip, send a message to bitcointip with ACCEPT in the message body.  The oldest pending tip(s) will be returned to the sender in ~%d days." % (round((oldesttransaction+(canceltransactionsinterval) - time.time())/(60*60*24)))
 					
 					##Add on a list of transactions since $oldesttransaction
@@ -501,7 +501,7 @@ def update_transactions():
 					resultc = mysqlcursor.fetchall()
 					for row in resultc:
 						if (k<10):
-							sender = $rowtransactions['sender_username'];
+							sender = row[?]
 							receiver_username = row[?]
 							receiver_address = row[?]
 							amount_BTC = row[?]
@@ -537,14 +537,14 @@ def update_transactions():
 					usernamebalance = bitcoind.getuserbalance(username)
 					usernameusdbalance = usernamebalance*exchangerate
 				
-					$message = message + "\n\n---\n\n|||\n|:|:|\n| Username: | **%s** |\n| Deposit Address: | **%s** |\n| Address Balance: | **%s BTC** *(~%s USD)* |\n\n[About Bitcointip](http://www.reddit.com/r/test/comments/11ei62/bitcointip_tip_redditors_with_bitcoin/)" % (username, usernameaddress, usernamebalance, usernameusdbalance)
+					message = message + "\n\n---\n\n|||\n|:|:|\n| Username: | **%s** |\n| Deposit Address: | **%s** |\n| Address Balance: | **%s BTC** *(~%s USD)* |\n\n[About Bitcointip](http://www.reddit.com/r/test/comments/11ei62/bitcointip_tip_redditors_with_bitcoin/)" % (username, usernameaddress, usernamebalance, usernameusdbalance)
 				
 					##put message in to submit table
 					sql = "INSERT INTO TEST_TABLE_TOSUBMIT (type, replyto, subject, text, captchaid, captchasol, sent, timestamp) VALUES ('message', '%s', 'Bitcointip Pending Transaction(s) Notice', '%s', '', '', '0', '%d')" % (username, message, time.time())
 					mysqlcursor.execute(sql)
 					mysqlcon.commit()
 				
-					print "<br><br>Notification of Pending transactions prepared for $username";
+					print ("<br><br>Notification of Pending transactions prepared for $username")
 					
 				
 		
@@ -553,7 +553,7 @@ def update_transactions():
 				sql = "INSERT INTO TEST_TABLE_RECENT (type,timestamp) values('TRANSACTIONS_NOTIFIED', '%d')" % (time.time())
 				mysqlcursor.execute(sql)
 				mysqlcon.commit()
-				print "<br><br>TRANSACTIONS_INSERTED(NOTIFIED) to "
+				print ("<br><br>TRANSACTIONS_INSERTED(NOTIFIED) to ")
 				
 			else:
 				
@@ -561,7 +561,7 @@ def update_transactions():
 				sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='TRANSACTIONS_NOTIFIED'" % (time.time())
 				mysqlcursor.execute(sql)
 				mysqlcon.commit()
-				print "<br><br>TRANSACTIONS_UPDATED(NOTIFIED) to "
+				print ("<br><br>TRANSACTIONS_UPDATED(NOTIFIED) to ")
 				
 			
 		else:
@@ -579,16 +579,16 @@ def update_transactions():
 			sql = "INSERT INTO TEST_TABLE_RECENT (type,timestamp) values('TRANSACTIONS_UPDATED', '"%d"')" % (time.time())
 			mysqlcursor.execute(sql)
 			mysqlcon.commit()
-			print "<br><br>TRANSACTIONS_INSERTED(UPDATED) to "
+			print ("<br><br>TRANSACTIONS_INSERTED(UPDATED) to ")
 			
 		else:
 			##else update
 			sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='TRANSACTIONS_UPDATED'" % (time.time())
 			mysqlcursor.execute(sql)
 			mysqlcon.commit()
-			print "<br><br>TRANSACTIONS_UPDATED(UPDATED) to "
+			print ("<br><br>TRANSACTIONS_UPDATED(UPDATED) to ")
 	else:
-		print "<br><br> Hasn't beena day yet.";
+		print ("<br><br> Hasn't beena day yet.")
 	
 
 #find_message_command
@@ -599,9 +599,11 @@ def find_message_command(themessage): #array
 	author = themessage[author]
 	
 	if (botstatus == "down")
+		#if down, just reply with a down message to all messages
 		returnstring "The bitcointip bot is currently down.\n\n[Click here for more information about the bot.](http:##www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/)\n\n[Click here for more information about bitcoin.](http:##www.weusecoins.com/)\n\n[Click here to get a bitcoin wallet.](https:##blockchain.info/wallet/)"
 		return returnstring
 	
+	userhasaccount = 0
 	#See if the message author has a bitcointip account, if not, make one for them.
 	sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='$author'"
 	mysqlcursor.execute(sql)
@@ -615,13 +617,6 @@ def find_message_command(themessage): #array
 	
 	#Start going through the message for commands. Only the first found will be evaluated
 	
-	#"REDEEM KARMA: 1thisisabitcoinaddresshereyes"
-	#"TRANSACTIONS"/"HISTORY"/"ACTIVITY"
-	#"EXPORT ACCOUNT"
-	#"IMPORT ACCOUNT"
-	#ANY COMMAND OR NO COMMAND
-	
-
 	
 	#"REDEEM KARMA: 1thisisabitcoinaddresshereyes"
 	#if bitcoinaddress is valid, 
@@ -662,11 +657,11 @@ def find_message_command(themessage): #array
 				
 				
 				#praw
-				user = reddit.get_redditor(author)
+				thisuser = reddit.get_redditor(author)
 				
 				
-				linkkarma = user.link_karma
-				commentkarma = user.comment_karma
+				linkkarma = thisuser.link_karma
+				commentkarma = thisuser.comment_karma
 				totalkarma = linkkarma + commentkarma
 	
 				
@@ -680,26 +675,26 @@ def find_message_command(themessage): #array
 				#only give valid reddit users any bitcoins (check that karma is above a certain amount)
 				if ( linkkarma>minlinkkarma and commentkarma>mincommentkarma and totalkarma>mintotalkarma):
 					#User has enough karma
-					print "user has enough karma"
+					print ("user has enough karma")
 					
 					if ( karmabitcoinamount < 0.002 )
 						 bitcoinamount = karmabitcoinamount +defaultbitcoinamount
-						print "give user defualt amount too."
+						print ("give user defualt amount too.")
 					else:
 						bitcoinamount = karmabitcoinamount;
-						print "don't give user default amount.";
+						print ("don't give user default amount.")
 					
 					#check to make sure the faucet has enough.
 					if ( faucetbalance > (bitcoinamount+0.0005) ):
 						
 						#The reddit bitcoin faucet has enough
-						print "the reddit bitcoin faucet has: $faucetbalance."
+						print ("the reddit bitcoin faucet has: $faucetbalance.")
 
 						#go ahead and send the bitcoins to the user
 						status = bitcoind.transact("bitcointipfaucetdepositaddress", karmabitcoinaddress, bitcoinamount)
 
 						if (status != "error"):
-							print "no error, transaction done, bitcoins en route.";
+							print ("no error, transaction done, bitcoins en route.")
 							#reply to their message with success
 							returnstring = "Your bitcoins are on their way.  Check the status here: http://blockchain.info/address/$karmabitcoinaddress\n\nIf you do not want your bitcoins, consider donating them to a [good cause](https://en.bitcoin.it/wiki/Donation-accepting_organizations_and_projects)."
 							
@@ -710,7 +705,7 @@ def find_message_command(themessage): #array
 
 						else:
 							#there was an error with blockchain, have the user try again later maybe.
-							print "error with the blockchain."
+							print ("error with the bitcoind.")
 							#say so.
 							returnstring = "The Reddit Bitcoin Faucet is down temporarily.  Try again another day."
 
@@ -722,16 +717,16 @@ def find_message_command(themessage): #array
 				else:
 
 					#user doesn't have enough karma
-					print "User doesn't have enough karma."
+					print ("User doesn't have enough karma.")
 					returnstring = "You do not have enough karma to get bitcoins. You need at least $mincommentkarma Comment Karma to be eligible (You only have $commentkarma). Keep redditing or try this bitcoin faucet: https://freebitcoins.appspot.com"
 
 			else:
 				#no valid bitcoin address detected
-				print "No valid bitcon address detected."
+				print ("No valid bitcon address detected.")
 				returnstring = "No valid bitcoin address detected.  Send the string \"REDEEM KARMA: 1YourBitcoinAddressHere\" please."
 
 		else:
-			print "User has already redeemed karma"
+			print ("User has already redeemed karma")
 			#user has already redeemed karma, can't do it again.
 			returnstring = "You have already sold your karma for bitcoins.  You can only do this once."
 	
