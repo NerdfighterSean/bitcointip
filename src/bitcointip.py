@@ -1841,76 +1841,82 @@ def submit_messages():
 	result = mysqlcursor.fetchall()
 	for row in result:
 		if (stop == 0):
-			print "Trying to go through each row"
-			type = row[?]
-			replyto = row[?]
-			text = row[?]
-			captchaid = row[?]
-			captchasol = row[?]
-			sent = row[?]
-			timestamp = row[?]
+			print ("Trying to go through each unsent message/comment")
+			type = row[1]
+			replyto = row[2]
+			subject = row[3]
+			text = row[4]
+			captchaid = row[5]
+			captchasol = row[6]
+			sent = row[7]
+			timestamp = row[8]
 			
-			print "Type: $type<br>"
+			print ("Type:", type)
 			
 			if ( type == "comment" ): 
 				
 				#try to post comment reply
-				#comment = submission.comments[0]
-				#comment.reply('test')
+				#comment = submission.comments[0] ?
+				#comment.reply('test') ?
 				
 				#TODO
-				#what is proper way to send a reply and it's output?
+				#what is proper way to send a reply to a comment?
+				#use praw here
 				comment = make_comment_object( with thingid=replyto)
 				sendresult = comment.reply(text)
 				
-				print "Tried to send comment."
+				print ("Tried to send comment.")
 				
-				if( sendresult == "sent" ):
+				#TODO based on sendresult, mark message sent?
+				if( sendresult == "sent"? ):
 					##it worked.
 					$sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
 					mysqlcursor.execute(sql)
 					mysqlcon.commit()
-					print "Comment delivered"
-				else if ( sendresult == "ratelimited" ):
+					print ("Comment delivered")
+					
+				else if ( sendresult == "ratelimited"? ):
 					##it wasn't sent
-					print "Not sent... stopping..."
+					print ("Not sent... stopping...")
 					stop = 1
-				else ( sendresult == "error" ):
+					
+				else if ( sendresult == "error" ):
 					$sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=x WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
 					mysqlcursor.execute(sql)
 					mysqlcon.commit()
-					print "Comment not sent because of error."
+					print ("Comment not sent because of error.")
 				
-
-			
-			
 
 			if ( type == "message" ): 
 				
-				#try to post a message
-				#r.compose_message('bboe', 'Subject Line', 'You are awesome!')
+				#try to send a personal message
 				
 				#TODO
 				#what is proper way to send a reply to a message and it's output?
-				sendresult = reddit.compose_message(replyto, 'Reply message', test)
+				#use praw here
+				sendresult = reddit.compose_message(replyto, subject, test)
 				
-				print "Tried to send comment."
+				print ("Tried to send message.")
 				
-				if( sendresult == "sent" ):
+				#TODO based on sendresult, mark message sent?
+				if( sendresult == "sent"? ):
 					##it worked.
 					$sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
 					mysqlcursor.execute(sql)
 					mysqlcon.commit()
-					print "Comment delivered"
-				else if ( sendresult == "ratelimited" ):
+					print ("Message delivered")
+					
+				else if ( sendresult == "ratelimited"? ):
 					##it wasn't sent
-					print "Not sent... stopping..."
+					print ("Not sent... stopping...")
 					stop = 1
-				else ( sendresult == "error" ):
+					
+				else if ( sendresult == "error" ):
+					#user doesn't exist or some other reason to cancel the message
 					$sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=x WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
 					mysqlcursor.execute(sql)
 					mysqlcon.commit()
-					print "Comment not sent because of error."
+					print ("Message not sent because of error.")
 
 
 
