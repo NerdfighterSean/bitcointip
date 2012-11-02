@@ -10,7 +10,7 @@ import base64
 import bitcoind
 
 #timestamp = time.time()
-from time import time
+import time
 
 #import mysql stuff
 import MySQLdb
@@ -197,7 +197,6 @@ def addUser(username):
 def update_lastactive(username)
 
 	#check if user has been active at all.  If so, update, if not insert.
-	#$result = mysql_query("SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTACTIVE_$username'",$con); #todo
 	userhasbeenactive = 0
 	
 	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTACTIVE_%s'" % (username)
@@ -343,7 +342,7 @@ def doTransaction(transaction_from, transaction_to, transaction_amount, tip_type
 		mysqlcon.commit()
 	
 	
-		#if tip is to bitcointip, add tip to giftamount for $sender.
+		#if tip is to bitcointip, add tip to giftamount for sender.
 		if ( transaction_to.lower() == "bitcointip" ):
 			oldgiftamount = getUserGiftamount(transaction_from)
 			newgiftamount = oldgiftamount + transaction_amount
@@ -1024,13 +1023,13 @@ def find_message_command(themessage): #array
 			
 			
 			
-			importsuccessful = (bitcoind.importprivkey($privatekey, "thisisatemporarylabelthatnobodyshoulduse"))
+			importsuccessful = (bitcoind.importprivkey(privatekey, "thisisatemporarylabelthatnobodyshoulduse"))
 			
 			print "<br>importsuccessful: $importsuccessful"
 			
 				if (importsuccessful == true):
 			
-				authornewaddress = bitcoind.getaccountaddresstemp("thisisatemporarylabelthatnobodyshoulduse")
+				authornewaddress = bitcoind.getaddressesbyaccount("thisisatemporarylabelthatnobodyshoulduse")[0]
 				authornewbalance = bitcoind.getbalance("thisisatemporarylabelthatnobodyshoulduse")
 				
 				print "<br>authornewaddress: $authornewaddress..."
