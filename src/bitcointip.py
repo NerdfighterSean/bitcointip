@@ -598,6 +598,207 @@ def update_transactions():
 		print ("<br><br> Hasn't beena day yet.")
 	
 
+	
+def eval_tip(ThingData):
+	#evaluates a user tip, does the tip if valid, and then sends comment reply and messages if needed
+	
+	##List all the properties the tip could have
+	tip_senderusername = ThingData[author]
+	tip_timestamp = ThingData[created_utc]
+	tip_id = ThingData[name]
+	tip_subreddit = ThingData[subreddit]
+	tip_type = #message or comment? todo
+	
+	#Now get the properties of the tip string
+	##isolate the tipping command
+	regex_start_string = "(\+((bitcointip)|(bitcoin)|(tip)|(btctip)|(bittip)|(btc)))" #start tip
+	regex_bitcoinaddress_string = "(1([A-Za-z0-9]{25,35}))" #bitcoin address
+	regex_redditusername_string = "((@)?([A-Za-z0-9_-]{3,20}))" #reddit username
+	regex_fiatamount_string = "((((\$)?(((\d{1,3}(\,\d{3})*|(\d+))(\.\d{1,2})?)|(\.\d{1,2})))(( )?USD))|(((\$)(((\d{1,3}(\,\d{3})*|(\d+))(\.\d{1,2})?)|(\.\d{1,2})))(( )?USD)?))" #fiat amount
+	regex_bitcoinamount_string = "(((((B)|(&bitcoin;))(((\d{1,3}(\,\d{3}){1,2}|(\d+))(((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8})))?))|((((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8}))))))(( )?BTC)?)|(((B)|(&bitcoin;))?(((\d{1,3}(\,\d{3}){1,2}|(\d+))(((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8})))?))|((((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8}))))))(( )?BTC))))" #bitcoin amount
+	regex_all_string = "(\bALL\b)" #all keyword
+	regex_flip_string = "(\bFLIP\b)" #flip keyword
+	regex_verify_string = "(\bNOVERIFY\b)" #noverify keyword
+	regex_internet_string = "(\+1 internet(s)?)" #internet keyword
+	
+	# todo why doesn't this work? too large?
+	#total=(((\+((bitcointip)|(bitcoin)|(tip)|(btctip)|(bittip)|(btc)))(\ )((1([A-Za-z0-9]{25,35}))|((@)?([A-Za-z0-9_-]{3,20})))?(\ )(((((\$)?(((\d{1,3}(\,\d{3})*|(\d+))(\.\d{1,2})?)|(\.\d{1,2})))((\ )?USD))|(((\$)(((\d{1,3}(\,\d{3})*|(\d+))(\.\d{1,2})?)|(\.\d{1,2})))((\ )?USD)?))|(((((B)|(&bitcoin;))(((\d{1,3}(\,\d{3}){1,2}|(\d+))(((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8})))?))|((((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8}))))))((\ )?BTC)?)|(((B)|(&bitcoin;))?(((\d{1,3}(\,\d{3}){1,2}|(\d+))(((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8})))?))|((((\.)(((\d{3}\,\d{3}\,\d{1,2})|(\d{3}\,\d{1,3}))|(\d{1,8}))))))((\ )?BTC))))|(\bALL\b)|(\bFLIP\b))(\ )((\bNOVERIFY\b))?)|((\+1\ internet(s)?)))
+	
+
+	#((start (bitcoinaddress|redditusername)? (fiatamount|bitcoinamount|all|flip) (verify)?)|(internet))
+	regex_tip_string = "(("+regex_start_string+" ("+regex_bitcoinaddress_string+"|"+regex_redditusername_string+")? ("+regex_fiatamount_string+"|"+regex_bitcoinamount_string+"|"+regex_all_string+"|"+regex_flip_string+") ("+regex_verify_string+")?)|("+regex_internet_string+"))"
+	
+	regex_start = re.compile(regex_start_string,re.IGNORECASE)
+	regex_bitcoinaddress = re.compile(regex_bitcoinaddress_string,re.IGNORECASE)
+	regex_redditusername = re.compile(regex_redditusername_string,re.IGNORECASE)
+	regex_fiatamount = re.compile(regex_fiatamount_string,re.IGNORECASE)
+	regex_bitcoinamount = re.compile(regex_bitcoinamount_string,re.IGNORECASE)
+	regex_all = re.compile(regex_all_string,re.IGNORECASE)
+	regex_flip = re.compile(regex_flip_string,re.IGNORECASE)
+	regex_verify = re.compile(regex_verify_string,re.IGNORECASE)
+	regex_internet = re.compile(regex_internet_string,re.IGNORECASE)
+	regex_tip = re.compile(regex_tip_string,re.IGNORECASE)
+	
+	#isolate the tip_command from the text body
+	tip_command = regex_tip.search(ThingData[body]).groups(0)
+	
+	tip_command_start = regex_start.search(tip_command).groups(0)
+	tip_command_bitcoinaddress = regex_bitcoinaddress.search(tip_command).groups(0)
+	tip_command_redditusername = regex_redditusername.search(tip_command).groups(0)
+	tip_command_fiatamount = regex_fiatamount.search(tip_command).groups(0)
+	tip_command_bitcoinamount = regex_bitcoinamount.search(tip_command).groups(0)
+	tip_command_all = regex_all.search(tip_command).groups(0)
+	tip_command_flip = regex_flip.search(tip_command).groups(0)
+	tip_command_verify = regex_verify.search(tip_command).groups(0)
+	tip_command_internet = regex_internet.search(tip_command).groups(0)
+	
+	##Make sure all these values are filled by the time we get to the end:
+	#transaction_from
+	#transaction_to
+	#transaction_amount
+	
+	#get transaction_from
+	transaction_from = tip_senderusername
+	
+	#get transaction_to
+	if (tip_command_redditusername):
+		transaction_to = tip_command_redditusername.strip('@')
+	else if (tip_command_bitcoinaddress):
+		transaction_to = tip_command_bitcoinaddress
+	else if (tip_type == "comment"):
+		#recipient not specified
+		#get author of parent comment
+		transaction_to = #author of parent comment #todo use praw
+	else if (tip_type == "message"):
+		#malformed tip
+		#must include recipient
+		#error
+		cancelmessage = "You must specify a recipient username or bitcoinaddress."
+		
+	
+	#get transaction_amount
+	if (tip_command_bitcoinamount):
+		transaction_amount = tip_command_bitcoinamount.strip('B &bitcoin; btc BTC')
+	else if (tip_command_fiatamount):
+		transaction_amount = (float(tip_command_fiatamount.strip('$ usd USD'))/getExchangeRate("mtgoxUSD"))
+	else if (tip_command_all):
+			senderbalance = getuserbalance(transaction_from)
+			transaction_amount = (senderbalance - 0.0005)
+			transaction_amount = round(amount, 8)
+	else if (tip_command_flip):
+		if (getuserbalance(transaction_from)>=0.0105):
+			if (getusergiftamount(transaction_from)>=0.25):
+				##do a coin flip
+				flipresult = round(rand(0,1))
+				if (flipresult==1):
+					transaction_amount = 0.01
+				else:
+					transaction_amount = 0
+			else:
+				#error: not donated enough
+				cancelmessage = "You have not donated enough to use the flip command."
+		else:
+			#error: not enough balance
+			cancelmessage = "You don't have a bitcent (and fee) to flip."
+	else if (tip_command_internet):
+		if (getusergiftamount(transaction_from)>=1):
+			if (tip_command_internet.find('s')):
+				transaction_amount = 0.02
+				if (getuserbalance(transaction_from)<0.0205):
+					cancelmessage = "You don't have 2 internets to give)
+			else:
+				if (getuserbalance(transaction_from)>=0.0105):
+					transaction_amount = 0.01
+		else:
+		#error: not donated enough
+		cancelmessage = "You have not donated enough to use the '+1 internet' command."
+		
+		
+	##check conditions to cancel the transaction and return error message
+	if (transaction_amount<=0 and !tip_command_flip and cancelmessage==""):
+		cancelmessage = "You cannot send an amount <= 0. That is just silly."
+	else if (transaction_amount+0.0005 > getuserbalance(transaction_from) and cancelmessage==""):
+		cancelmessage = "You do not have enough in your account.  You have %d BTC, but need %d BTC (do not forget about the 0.0005 BTC fee per transaction)." % (getuserbalance(transaction_from), transaction_amount+0.0005)
+	else if ( tip_type=="comment" and (checksubreddit(tip_subreddit)==0) and (getusergiftamount(transaction_from)<2) and cancelmessage==""):
+		cancelmessage = "The %s subreddit is not currently supported for you." % (tip_subreddit)
+	else if (checkuser(transaction_from)==0 and tipsenderusername!="" and cancelmessage==""):
+		cancelmessage="You are not allowed to send or receive money."
+	else if (checkuser(transaction_to)==0 and tipreceiverusername!="" and cancelmessage==""){
+		cancelmessage="The user %s is not allowed to send or receive money." % (transaction_to)
+	else if (transaction_to == transaction_from and cancelmessage==""):
+		cancelmessage="You cannot send any amount to yourself, that is just silly."
+	else if (transaction_to == "" and cancelmessage==""):
+		cancelmessage="You must specify a recipient username or bitcoin address."
+
+	if (!cancelmessage):
+		transaction_status = dotransaction(transaction_from, transaction_to, transaction_amount, tip_type, tip_id, tip_subreddit, tip_timestamp)
+		#todo, simplify dotransaction
+	
+	#based on the variables, form messages.
+	verifiedmessage = "[*%s &nbsp; >>>> &nbsp; %d BTC (~$%d) &nbsp; >>>> &nbsp; %s*](http://reddit.com/r/bitcointip)" % (transaction_from, transaction_amount, round(transaction_amount*getExchangeRate("mtgoxUSD"), 2), transaction_to)
+	
+	rejectedmessage = "[~~*%s &nbsp; >>>> &nbsp; %d BTC (~$%d) &nbsp; >>>> &nbsp; %s*~~](http://reddit.com/r/bitcointip)" % (transaction_from, transaction_amount, round(transaction_amount*getExchangeRate("mtgoxUSD"), 2), transaction_to)
+	
+	#create special response for flip
+	if (tip_command_flip and cancelmessage==""):
+		if (flipresult==1):
+			flipmessage = "Bit landed **1** up. %s wins 1 bitcent.\n\n" % (transaction_to)
+		if (flipresult==0):
+			flipmessage = "Bit landed **0** up. %s wins nothing.\n\n" % (transaction_to)
+	else:
+		flipmessage = ""
+	
+	#Reply to a comment under what conditions?
+	#reply to a flip only if cancelmessage!="" 
+	#reply to a +1 internet only if it is a success
+	if (tip_type == "comment" and tip_command_verify.lower()!="noverify" and ((checksubreddit(tip_subreddit)==1) or (getusergiftamount(transaction_from)>=2))):
+		#Reply to the comment
+		if (transaction_status=="completed" or transaction_status=="pending"):
+			commentreplymessage = flipmessage
+			if (flipresult==1 or !tip_command_flip):
+				commentreplymessage += verifiedmessage
+		else:
+		commentreplymessage += rejectedmessage
+		
+	if (commentreplymessage):
+		#if comment reply is prepared, send it
+		#enter reply into table todo
+		
+		
+	
+	#Send a message to the sender under what conditions?
+	#if flipping, only send a pm to sender if they don't have enough for a flip.
+	#if +1internet, do not send a pm to sender under any circumstance. (nonusers may use this without intent to tip, don't bother them)
+	if (tip_type == "message" or transaction_status == "cancelled" or cancelledmessage):
+		#PM the Sender
+		if (transaction_status=="completed" or transaction_status=="pending"):
+			pmsendersubject = "Successful Bitcointip Notice"
+			pmsendermessage = flipmessage + verifiedmessage
+		else:
+			pmsendersubject = "Failed Bitcointip Notice"
+			pmsendermessage = flipmessage + rejectedmessage
+		#add footer to PM
+		pmsendermessage += getfooter(transaction_from)
+	
+	if (pmsendermessage):
+		#if pm to sender is prepared, send it
+		#enter message into table todo
+	
+	#Send a message to the receiver under what conditions?
+	#only PM receiver if tip_type is a message and success
+	if (tip_type == "message" and transaction_status == "pending"):
+		#PM the Receiver
+		pmreceiversubject = "Successful Bitcointip Notice"
+		pmreceivermessage = flipmessage +verifiedmessage 
+		
+		#add footer to PM
+		pmreceivermessage += getfooter(transaction_to)
+		
+	if (pmreceivermessage):
+		#if pm to receiver is prepared, send it
+		#enter message into table todo
+
+	
 #find_message_command
 #returns text result as message to send back.
 def find_message_command(themessage): #array
