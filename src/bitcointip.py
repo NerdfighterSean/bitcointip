@@ -1,28 +1,30 @@
+#reddit api wrapper
+import praw
 
-#import reddit praw stuff
 #import encryption/decryption stuff
+import rijndael
+import base64
 
-
-import bitcoind
 #bitcoindwrapper and custom methods
 #txid = bitcoind.transact(fromthing, tothing, amount)
+import bitcoind
 
-from time import time
-#import time stuff
 #timestamp = time.time()
+from time import time
 
-import MySQLdb
 #import mysql stuff
+import MySQLdb
 
-import urllib2
 #datastring = urllib2.urlopen(url).read()
+import urllib2
 
-import json
 #jsonarray = json.loads(jsonstring)
 #jsonstring = json.dumps(jsonarray)
+import json
 
-import re
 #regex stuff
+import re
+
 	
 
 ######################################################################
@@ -83,6 +85,47 @@ notifytransactionsinterval = 60*60*24*7
 #FUNCTIONS
 ######################################################################
 
+KEY_SIZE = 16
+BLOCK_SIZE = 32
+
+
+def encrypt(key, plaintext):
+    padded_key = key.ljust(KEY_SIZE, '\0')
+    padded_text = plaintext + (BLOCK_SIZE - len(plaintext) % BLOCK_SIZE) * '\0'
+
+    # could also be one of
+    #if len(plaintext) % BLOCK_SIZE != 0:
+    #    padded_text = plaintext.ljust((len(plaintext) / BLOCK_SIZE) + 1 * BLOCKSIZE), '\0')
+    # -OR-
+    #padded_text = plaintext.ljust((len(plaintext) + (BLOCK_SIZE - len(plaintext) % BLOCK_SIZE)), '\0')
+
+    r = rijndael.rijndael(padded_key, BLOCK_SIZE)
+
+    ciphertext = ''
+    for start in range(0, len(padded_text), BLOCK_SIZE):
+        ciphertext += r.encrypt(padded_text[start:start+BLOCK_SIZE])
+
+    encoded = base64.b64encode(ciphertext)
+
+    return encoded
+
+
+def decrypt(key, encoded):
+    padded_key = key.ljust(KEY_SIZE, '\0')
+
+    ciphertext = base64.b64decode(encoded)
+
+    r = rijndael.rijndael(padded_key, BLOCK_SIZE)
+
+    padded_text = ''
+    for start in range(0, len(ciphertext), BLOCK_SIZE):
+        padded_text += r.decrypt(ciphertext[start:start+BLOCK_SIZE])
+
+    plaintext = padded_text.split('\x00', 1)[0]
+
+    return plaintext
+	
+	
 
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
 def getExchangeRate(symbol):
@@ -1230,18 +1273,18 @@ def submit_messages():
 ######################################################################
 
 #DECRYPT DETAILS FOR USE:
-decMYSQLDBhost = decrypt(encMYSQLDBhost)
-decMYSQLDBlogin = decrypt(encMYSQLDBlogin)
-decMYSQLDBpass = decrypt(encMYSQLDBpass)
-decMYSQLDBdbname = decrypt(encMYSQLDBdbname)
-decBITCOINDlogin = decrypt(encBITCOINDlogin)
-decBITCOINDpass = decrypt(encBITCOINDpass)
-decBITCOINDip = decrypt(encBITCOINDip)
-decBITCOINDport = decrypt(encBITCOINDport)
-decBITCOINDsecondpass = decrypt(encBITCOINDsecondpass)
-decREDDITbotusername = decrypt(encREDDITbotusername)
-decREDDITbotpassword = decrypt(encREDDITbotpassword)
-decREDDITbotid = decrypt(encREDDITbotid)
+decMYSQLDBhost = decrypt(decryptionkey, encMYSQLDBhost)
+decMYSQLDBlogin = decrypt(decryptionkey, encMYSQLDBlogin)
+decMYSQLDBpass = decrypt(decryptionkey, encMYSQLDBpass)
+decMYSQLDBdbname = decrypt(decryptionkey, encMYSQLDBdbname)
+decBITCOINDlogin = decrypt(decryptionkey, encBITCOINDlogin)
+decBITCOINDpass = decrypt(decryptionkey, encBITCOINDpass)
+decBITCOINDip = decrypt(decryptionkey, encBITCOINDip)
+decBITCOINDport = decrypt(decryptionkey, encBITCOINDport)
+decBITCOINDsecondpass = decrypt(decryptionkey, encBITCOINDsecondpass)
+decREDDITbotusername = decrypt(decryptionkey, encREDDITbotusername)
+decREDDITbotpassword = decrypt(decryptionkey, encREDDITbotpassword)
+decREDDITbotid = decrypt(decryptionkey, encREDDITbotid)
 
 # CONNECT TO MYSQL DATABASE
 mysqlcon = MySQLdb.connect(decMYSQLDBhost, decMYSQLDBlogin, decMYSQLDBpass, decMYSQLDBdbname)
