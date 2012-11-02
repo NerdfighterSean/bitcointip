@@ -51,17 +51,17 @@ import re
 #TEST_TABLE_TRANSACTIONS
 	#0  transaction_id
 	#1  sender_username
-	#2  sender_address
-	#3  receiver_username
-	#4  receiver_address
+	#2  sender_address (not needed)
+	#3  receiver_username  (or can also be address)
+	#4  receiver_address (not needed)
 	#5  amount_BTC
-	#6  amount_USD
+	#6  amount_USD (not needed)
 	#7  type
-	#8  url
+	#8  url (id)
 	#9  subreddit
 	#10 timestamp
-	#11 verify
-	#12 statusmessage
+	#11 verify (not needed)
+	#12 statusmessage (not needed)
 	#13 status
 	
 #TEST_TABLE_USERS
@@ -310,19 +310,19 @@ def doestransactionexist(sender, reciever, timestamp):
 	
 #dotransaction
 #do the transaction
-def dotransaction(senderusername, senderaddress, receiverusername, receiveraddress, bitcoinamount, dollaramount, type, url, timestamp, subreddit, verify, status, statusmessage):
+def dotransaction(transaction_from, transaction_to, transaction_amount, tip_type, tip_id, tip_subreddit, tip_timestamp):
 
 	#returns success message or failure reason
 	
 	print "(doing transaction")
 	
 	#Search for transaction in transaction list to prevent double processing!
-	if ( doestransactionexist(senderusername, receiverusername, timestamp) == 1):
+	if ( doestransactionexist(transaction_from, transaction_to, tip_timestamp) == 1):
 		print ("Transaction does already exist.")
 		return ("cancelled")
 
 	#submit the transaction to the wallet.
-	statusmessage = bitcoind.transact(senderusername, receiveraddress, bitcoinamount)
+	statusmessage = bitcoind.transact(transaction_from, transaction_to, transaction_amount)
 	
 	print ("statusmessage: ", statusmessage)
 	
@@ -369,7 +369,7 @@ def dotransaction(senderusername, senderaddress, receiverusername, receiveraddre
 	#cancelled or pending
 	
 	#update lastactive for the sender
-	update_lastactive(senderusername)
+	update_lastactive(transaction_from)
 	
 	return status
 
