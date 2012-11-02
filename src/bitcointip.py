@@ -5,10 +5,10 @@
 
 import bitcoind
 #bitcoindwrapper and custom methods
-#txid = bitcoind.transact(fromthing,tothing,amount)
+#txid = bitcoind.transact(fromthing, tothing, amount)
 
 from time import time
-#import time to get current timestamp
+#import time stuff
 #timestamp = time.time()
 
 import MySQLdb
@@ -18,59 +18,11 @@ import urllib2
 #datastring = urllib2.urlopen(url).read()
 
 import json
-#encode/decode json
 #jsonarray = json.loads(jsonstring)
 #jsonstring = json.dumps(jsonarray)
 
 import re
 #regex stuff
-
-
-######################################################################
-#MYSQL_TABLES
-######################################################################
-
-
-#TEST_TABLE_FACET_PAYOUTS
-
-#TEST_TABLE_RECENT (keep track of date that users are last active for transaction reversal purposes)
-	#0 type
-	#1 timestamp
-	
-#TEST_TABLE_TOSUBMIT (comments or messages for /u/bitcointip to send)
-	#0 tosubmit_id (not used)
-	#1 type
-	#2 replyto
-	#3 subject
-	#4 text
-	#5 captchaid
-	#6 captchasol
-	#7 sent
-	#8 timestamp
-	
-#TEST_TABLE_TRANSACTIONS
-	#0  transaction_id
-	#1  sender_username
-	#2  sender_address (not needed)
-	#3  receiver_username  (or can also be address)
-	#4  receiver_address (not needed)
-	#5  amount_BTC
-	#6  amount_USD (not needed)
-	#7  type
-	#8  url (id)
-	#9  subreddit
-	#10 timestamp
-	#11 verify (not needed)
-	#12 statusmessage (not needed)
-	#13 status
-	
-#TEST_TABLE_USERS
-	#0 userid (not used)
-	#1 username
-	#2 address
-	#3 balance (not used)
-	#4 datejoined
-	#5 giftamount
 	
 
 ######################################################################
