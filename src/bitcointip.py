@@ -308,6 +308,13 @@ def doestransactionexist(sender, reciever, timestamp):
 	return 0
 
 	
+#create footer for the end of all PMs
+def getfooter(username):
+	footer = "\n\n---\n\n|||\n|:|:|\n| Account Owner: | **%s** |\n| Deposit Address: | **%s** |\n| Address Balance: | **%d BTC** *(~$%d USD)* \n|"."\n\n[About Bitcointip](http://www.reddit.com/r/bitcointip) (BETA!)" % (username, getuseraddress(username), getuserbalance(username), round(getuserbalance(username)*getExchangeRate("mtgoxUSD"),2))
+	return footer
+	
+	
+	
 #dotransaction
 #do the transaction
 def dotransaction(transaction_from, transaction_to, transaction_amount, tip_type, tip_id, tip_subreddit, tip_timestamp):
