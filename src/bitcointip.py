@@ -51,8 +51,6 @@ encREDDITbotid = "???"
 #DECRYPTION KEY
 decryptionkey = "??????????"
 
-# ALLOWED SUBREDDITS
-allowedsubreddits = ["bitcointip", "test", "bitcoin", "girlsgonebitcoin", "bitmarket", "bitcoinmining", "decrypto", "mtred", "mtgox", "bitcoinmagazine"]
 
 # BANNED USERS
 bannedusers = []
@@ -122,7 +120,13 @@ def decrypt(key, encoded):
 
     return plaintext
 	
-	
+def getAllowedSubreddits():
+	getreddits = reddit.user.my_reddits()
+	for subreddit in getreddits:
+		allowedsubreddits.append(subreddit.display_name.lower())
+		print ("Got allowed subreddits:", allowedsubreddits)
+
+
 
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
 def getExchangeRate(symbol = "mtgoxUSD"):
@@ -1149,15 +1153,14 @@ def find_comment_command(comment):
 #eval_comments
 # get new comments and go through each one looking for a command, then respond.
 def eval_comments():
-	#TODO
-	#get all the comments that haven't yet been gotten.
-	
-	#go through all those comments oldest to newest and do find_comment_command(commentdataarray) on each comment
+
+#get array of subreddits bitcointip is subscribed to
+
 	find_comment_command(commentdataarray)
 	
-	#then when done, log the last comment evaluated.
-	# we'll start with that comment next time around.
 
+http://www.reddit.com/r/bitcoin
+http://www.reddit.com/r/bitcoin
 
 
 
@@ -1290,6 +1293,8 @@ bitcoind.access = ServiceProxy(jsonRPCClientString)
 reddit = praw.Reddit(user_agent = "bitcointip bot by /u/nerdfightersean https://github.com/NerdfighterSean/bitcointip")
 reddit.login(decREDDITbotusername, decREDDITbotpassword)
 
+allowedsubreddits = []
+getAllowedSubreddits()
 
 looping = 1
 # WHILE THE BOT DOESN'T HAVE ANY PROBLEMS, KEEP LOOPING OVER EVALUATING COMMENTS, MESSAGES, AND SUBMITTING REPLIES
