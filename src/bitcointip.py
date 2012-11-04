@@ -612,11 +612,15 @@ def eval_tip(thing):
 		return 0
 	
 	##List all the properties the tip could have
-	tip_senderusername = ThingData[author]
-	tip_timestamp = ThingData[created_utc]
-	tip_id = ThingData[name]
-	tip_subreddit = ThingData[subreddit]
+	tip_senderusername = thing.author.name
+	tip_timestamp = thing.created_utc
+	tip_id = thing.name
+	tip_subreddit = thing.subreddit.name
 	tip_type = #message or comment? todo
+	if (thing.dest=="bitcointip"):
+		tip_type = "message"
+	else:
+		tip_type = "comment"
 	
 	#Now get the properties of the tip string
 	##isolate the tipping command
@@ -649,7 +653,7 @@ def eval_tip(thing):
 	regex_tip = re.compile(regex_tip_string,re.IGNORECASE)
 	
 	#isolate the tip_command from the text body
-	tip_command = regex_tip.search(ThingData[body]).groups(0)
+	tip_command = regex_tip.search(thing.body).groups(0)
 	
 	tip_command_start = regex_start.search(tip_command).groups(0)
 	tip_command_bitcoinaddress = regex_bitcoinaddress.search(tip_command).groups(0)
@@ -1187,11 +1191,11 @@ def eval_comments():
 				#print ("(",comment.subreddit,")",comment.author,":",comment.body)
 				find_comment_command(comment)
 	lastcommentevaluatedtimestamp = first_comment_this_loop
+	#todo, write updated lastcommentevaluatedtimestamp to table.
 		
 	#now go through friendsofbitcointip
 	
 	friends_reddit = reddit.get_subreddit("friends")
-	
 	lastfriendcommentevaluatedtimestamp = #todo get from mysql table
 	
 	first_comment_this_loop = None
@@ -1207,7 +1211,7 @@ def eval_comments():
 			#print ("(",comment.subreddit,")",comment.author,":",comment.body)
 			find_comment_command(comment)
 	lastfriendcommentevaluatedtimestamp = first_comment_this_loop
-	
+	#todo, write updated lastfriendcommentevaluatedtimestamp to table.
 
 
 #submit_messages
