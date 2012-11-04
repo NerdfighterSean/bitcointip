@@ -803,10 +803,8 @@ def eval_tip(ThingData):
 	
 #find_message_command
 #returns text result as message to send back.
-def find_message_command(themessage): #array
+def find_message_command(message): #array
 	
-	body = themessage[body]
-	author = themessage[author]
 	
 	if (botstatus == "down")
 		#if down, just reply with a down message to all messages
@@ -815,14 +813,14 @@ def find_message_command(themessage): #array
 	
 	userhasaccount = 0
 	#See if the message author has a bitcointip account, if not, make one for them.
-	sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (author)
+	sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (message.author.name)
 	mysqlcursor.execute(sql)
 	result = mysqlcursor.fetchall()
 	for row in result:
 		userhasaccount = 1
 
 	if (userhasaccount == 0)
-		addUser(author)
+		addUser(message.author.name)
 	
 	
 	#Start going through the message for commands. Only the first found will be evaluated
@@ -831,7 +829,7 @@ def find_message_command(themessage): #array
 	#"REDEEM KARMA: 1thisisabitcoinaddresshereyes"
 	#if bitcoinaddress is valid, 
 	regex_karmaredeem = re.compile("REDEEM( )?KARMA:( )?(1([A-Za-z0-9]{25,35}))",re.IGNORECASE)
-	command_karmaredeem = regex_karmaredeem.search(body)
+	command_karmaredeem = regex_karmaredeem.search(message.body)
 	
 	if (command_karmaredeem and returnstring==""):
 		
@@ -852,7 +850,7 @@ def find_message_command(themessage): #array
 		
 		
 		
-		if ( hasUserRedeemedKarma(author) == 0 ):
+		if ( hasUserRedeemedKarma(message.author.name) == 0 ):
 			#if not redeemed yet, check for a valid bitcoin address
 
 			print ("user has not redeemed karma yet.")
@@ -864,14 +862,12 @@ def find_message_command(themessage): #array
 				#get user's link karma and comment karms
 				print ("Valid bitcoin address detected: ", karmabitcoinaddress)
 				
+		
 				
-				#praw todo
-				thisuser = reddit.get_redditor(author) #todo
-				
-				
-				linkkarma = thisuser.link_karma #todo
-				commentkarma = thisuser.comment_karma #todo
-				totalkarma = linkkarma + commentkarma #todo
+	
+				linkkarma = message.author.link_karma
+				commentkarma = message.author.comment_karma
+				totalkarma = linkkarma + commentkarma
 	
 				
 
@@ -908,7 +904,7 @@ def find_message_command(themessage): #array
 							returnstring = "Your bitcoins are on their way.  Check the status here: http://blockchain.info/address/%s\n\nIf you do not want your bitcoins, consider donating them to a [good cause](https://en.bitcoin.it/wiki/Donation-accepting_organizations_and_projects)." % (karmabitcoinaddress)
 							
 							#insert the transaction to the list of TABLE_FAUCET_PAYOUTS
-							sql = "INSERT INTO TEST_TABLE_FAUCET_PAYOUTS (transaction_id, username, address, amount, timestamp) VALUES ('%s', '%s', '%s', '%d', '%d')" % (txid, author, karmabitcoinaddress, bitcoinamount, time.time())
+							sql = "INSERT INTO TEST_TABLE_FAUCET_PAYOUTS (transaction_id, username, address, amount, timestamp) VALUES ('%s', '%s', '%s', '%d', '%d')" % (txid, message.author.name, karmabitcoinaddress, bitcoinamount, time.time())
 							mysqlcursor.execute(sql)
 							mysqlcon.commit()
 
@@ -943,15 +939,15 @@ def find_message_command(themessage): #array
 	#"TRANSACTIONS"/"HISTORY"/"ACTIVITY"
 	#Gives use a list of their transactions including deposits/withdrawals/sent/recieved
 	regex_history = re.compile("((TRANSACTIONS)|(HISTORY)|(ACTIVITY))",re.IGNORECASE)
-	command_history = regex_history.search(body)
+	command_history = regex_history.search(message.body)
 	
 	if (command_history and returnstring==""):
 		
 		#add first line of transaction table headers to the response.
-		transactionhistorymessage = "\n#**%s Transaction History***\n\nDate | Sender | Receiver | BTC | ~USD | Status |\n|:|:|:|:|:|:|\n" % (author)
+		transactionhistorymessage = "\n#**%s Transaction History***\n\nDate | Sender | Receiver | BTC | ~USD | Status |\n|:|:|:|:|:|:|\n" % (message.author.name)
 		k = 0
 
-		sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE sender_username='%s' OR receiver_username='%s' ORDER BY timestamp DESC" % (author, author)
+		sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE sender_username='%s' OR receiver_username='%s' ORDER BY timestamp DESC" % (message.author.name, message.author.name)
 		mysqlcursor.execute(sql)
 		result = mysqlcursor.fetchall()
 		for row in result:
@@ -973,10 +969,10 @@ def find_message_command(themessage): #array
 				date = date("D M d, Y", $timestamp);#todo python
 				
 				
-				if (sender == author):
+				if (sender == message.author.name):
 					senderbold = "**"
 					amountsign = "*"
-				else if (receiver == author):
+				else if (receiver == message.author.name):
 					receiverbold = "**"
 					amountsign = "**"
 					
@@ -1006,11 +1002,11 @@ def find_message_command(themessage): #array
 	###TRANSFER BALANCE: Y/N"
 	
 	regex_importkey = re.compile("((REPLACE PRIVATE KEY WITH:)( )?(5[a-zA-Z0-9]{35,60})(( )*(\n)*( )*)(TRANSFER BALANCE:)( )?(Y|N))",re.IGNORECASE)
-	command_importkey = regex_importkey.search(body)
+	command_importkey = regex_importkey.search(message.body)
 	
 	if (command_importkey and returnstring==""):
 
-		if (getUserGiftamount(author) >= 0.5):
+		if (getUserGiftamount(message.author.name) >= 0.5):
 		#do it
 		
 			print ("<br>Private Key detected...")
@@ -1020,8 +1016,8 @@ def find_message_command(themessage): #array
 			print ("Private Key: XXXXX")
 			print ("Transfer: ", transfer)
 			
-			authoroldaddress = getUserAddress(author)
-			authoroldbalance = getUserBalance(author)
+			authoroldaddress = getUserAddress(message.author.name)
+			authoroldbalance = getUserBalance(message.author.name)
 			
 			print ("authoroldaddress: ", authoroldaddress)
 			print ("authoroldbalance: ", authoroldbalance)
@@ -1041,8 +1037,8 @@ def find_message_command(themessage): #array
 				print ("authornewaddress: ", authornewaddress)
 				print ("authornewbalance: ", authornewbalance)
 			
-				setaccountold = bitcoind.setaccount(authoroldaddress, "OLD ADDRESS: "+author)
-				setaccountnew = bitcoind.setaccount(authornewaddress, author)
+				setaccountold = bitcoind.setaccount(authoroldaddress, "OLD ADDRESS: "+message.author.name)
+				setaccountnew = bitcoind.setaccount(authornewaddress, message.author.name)
 				
 				print ("setaccountold: ", setaccountold)
 				print ("setaccountnew: ", setaccountnew)
@@ -1063,7 +1059,7 @@ def find_message_command(themessage): #array
 			
 				##update user table entry with new balance and new address
 
-				sql = "UPDATE TEST_TABLE_USERS SET address='%s' WHERE username='%s'" % (authornewaddress, author)
+				sql = "UPDATE TEST_TABLE_USERS SET address='%s' WHERE username='%s'" % (authornewaddress, message.author.name)
 				mysqlcursor.execute(sql)
 				mysqlcon.commit()
 				
@@ -1080,10 +1076,10 @@ def find_message_command(themessage): #array
 	##ACCEPT PENDING TRANSACTIONS
 	##"ACCEPT"
 	regex_accept = re.compile("(ACCEPT)",re.IGNORECASE)
-	command_accept = regex_accept.search(body)
+	command_accept = regex_accept.search(message.body)
 	
 	if (command_accept and returnstring==""):
-		update_lastactive(author);
+		update_lastactive(message.author.name);
 		returnstring = "All pending transactions will be accepted.  No currently existing tips to you will be reversed."
 	
 
@@ -1100,7 +1096,7 @@ def find_message_command(themessage): #array
 		
 	##HELP
 	regex_help = re.compile("(HELP)",re.IGNORECASE)
-	command_help = regex_help.search(body)
+	command_help = regex_help.search(message.body)
 	
 	if (command and returnstring==""):
 		returnstring = "Check the [Help Page](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/)."
@@ -1114,7 +1110,7 @@ def find_message_command(themessage): #array
 
 	##ALL MESSAGES ADD FOOTER TO END OF ANY MESSAGE
 		
-	returnstring += getFooter(author)
+	returnstring += getFooter(message.author.name)
 
 		
 	##return returnstring;
@@ -1129,18 +1125,17 @@ def find_message_command(themessage): #array
 
 
 #eval_messages
-# get new messages and go through each one looking for a command, then respond.
+#get new messages and go through each one looking for a command, then respond.
 def eval_messages():
-	#TODO
-	#get all the messages that haven't yet been gotten.
-	
-	#go through all those messages oldest to newest and do find_message_command(messagedataarray) on each comment
-	find_message_command(messagedataarray)
-	
-	#then when done, log the timestamp of the last message evaluated.
-	# we'll start with that message next time around.
-
-
+	#get some unread messages.
+	unread_messages = reddit.user.get_unread(10)
+	for message in unread_messages:
+		if (message.was_comment == False):
+			if (message.author.name != "bitcointip"):
+					#check message for command
+					find_message_command(message)
+					#mark as read
+					message.mark_as_read()
 
 
 #find_comment_command
