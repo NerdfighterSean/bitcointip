@@ -128,6 +128,14 @@ def getAllowedSubreddits():
 		allowedsubreddits.append(subreddit.display_name.lower())
 		print ("Got allowed subreddits:", allowedsubreddits)
 
+		
+def getFriends():
+
+	#todo
+	#get list of friends from mysql table.
+	#friendsjson = tableentry
+	#friendsarray = decode json
+	friendsOfBitcointip = friendsarray
 
 
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
@@ -1134,7 +1142,7 @@ def find_message_command(message): #array
 #get new messages and go through each one looking for a command, then respond.
 def eval_messages():
 	#get some unread messages.
-	unread_messages = reddit.user.get_unread(limit=100)
+	unread_messages = reddit.user.get_unread(limit=1000)
 	for message in unread_messages:
 		if (message.was_comment == False):
 			if (message.author.name != "bitcointip"):
@@ -1160,9 +1168,8 @@ def eval_comments():
 		multiredditstring += x + "+"
 	
 	multi_reddits = reddit.get_subreddit(multiredditstring)
-	multi_reddits_comments = multi_reddits.get_comments()
 	
-	#go through comments
+	#go through comments of allowed subreddits
 	
 	lastcommentevaluatedtimestamp = #todo get from mysql table
 	
@@ -1176,11 +1183,31 @@ def eval_comments():
 			print ("old comment")
 			break
 		else:
-			#print ("(",comment.subreddit,")",comment.author,":",comment.body)
-			find_comment_command(comment)
+			if (comment.author.name not in friendsOfBitcointip):#exclude friendsofbitcointip
+				#print ("(",comment.subreddit,")",comment.author,":",comment.body)
+				find_comment_command(comment)
 	lastcommentevaluatedtimestamp = first_comment_this_loop
 		
-	#todo, write lastcommentevaluatedtimestamp to table.
+	#now go through friendsofbitcointip
+	
+	friends_reddit = reddit.get_subreddit("friends")
+	
+	lastfriendcommentevaluatedtimestamp = #todo get from mysql table
+	
+	first_comment_this_loop = None
+	print ("checking")
+	friends_reddit_comments = friends_reddit.get_comments(limit=1000)
+	for comment in friends_reddit_comments:
+		if not first_comment_this_loop:
+			first_comment_this_loop = comment.created_utc
+		if comment.created_utc <= lastfriendcommentevaluatedtimestamp:
+			print ("old comment")
+			break
+		else:
+			#print ("(",comment.subreddit,")",comment.author,":",comment.body)
+			find_comment_command(comment)
+	lastfriendcommentevaluatedtimestamp = first_comment_this_loop
+	
 
 
 #submit_messages
@@ -1312,6 +1339,9 @@ reddit.login(decREDDITbotusername, decREDDITbotpassword)
 
 allowedsubreddits = []
 getAllowedSubreddits()
+
+friendsOfBitcointip = []
+getFriendsOfBitcointip()
 
 looping = 1
 # WHILE THE BOT DOESN'T HAVE ANY PROBLEMS, KEEP LOOPING OVER EVALUATING COMMENTS, MESSAGES, AND SUBMITTING REPLIES
