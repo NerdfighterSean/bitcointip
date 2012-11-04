@@ -120,6 +120,8 @@ def decrypt(key, encoded):
 
     return plaintext
 	
+	
+	
 def getAllowedSubreddits():
 	getreddits = reddit.user.my_reddits()
 	for subreddit in getreddits:
@@ -588,11 +590,11 @@ def update_transactions():
 	
 
 	
-def eval_tip(ThingData):
+def eval_tip(thing):
 	#evaluates a user tip, does the tip if valid, and then sends comment reply and messages if needed
 	
 	#See if the message author has a bitcointip account, if not, ignore them.  Must send PM to bot to sign up.
-	sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (author)
+	sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (thing.author.name)
 	mysqlcursor.execute(sql)
 	result = mysqlcursor.fetchall()
 	for row in result:
@@ -1132,7 +1134,7 @@ def find_message_command(message): #array
 #get new messages and go through each one looking for a command, then respond.
 def eval_messages():
 	#get some unread messages.
-	unread_messages = reddit.user.get_unread(10)
+	unread_messages = reddit.user.get_unread(limit=100)
 	for message in unread_messages:
 		if (message.was_comment == False):
 			if (message.author.name != "bitcointip"):
@@ -1153,17 +1155,32 @@ def find_comment_command(comment):
 #eval_comments
 # get new comments and go through each one looking for a command, then respond.
 def eval_comments():
-
-#get array of subreddits bitcointip is subscribed to
-
-	find_comment_command(commentdataarray)
+	multiredditstring = ""
+	for x in allowedsubreddits:
+		multiredditstring += x + "+"
 	
-
-http://www.reddit.com/r/bitcoin
-http://www.reddit.com/r/bitcoin
-
-
-
+	multi_reddits = reddit.get_subreddit(multiredditstring)
+	multi_reddits_comments = multi_reddits.get_comments()
+	
+	#go through comments
+	
+	lastcommentevaluatedtimestamp = #todo get from mysql table
+	
+	first_comment_this_loop = None
+	print ("checking")
+	multi_reddits_comments = multi_reddits.get_comments(limit=1000)
+	for comment in multi_reddits_comments:
+		if not first_comment_this_loop:
+			first_comment_this_loop = comment.created_utc
+		if comment.created_utc <= lastcommentevaluatedtimestamp:
+			print ("old comment")
+			break
+		else:
+			#print ("(",comment.subreddit,")",comment.author,":",comment.body)
+			find_comment_command(comment)
+	lastcommentevaluatedtimestamp = first_comment_this_loop
+		
+	#todo, write lastcommentevaluatedtimestamp to table.
 
 
 #submit_messages
