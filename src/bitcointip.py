@@ -1,7 +1,7 @@
-#reddit api wrapper
+#python reddit api wrapper
 import praw
 
-#import encryption/decryption stuff
+#encryption/decryption stuff
 import rijndael
 import base64
 
@@ -12,11 +12,11 @@ import bitcoind
 #timestamp = time.time()
 import time
 
-#import mysql stuff
+#mysql database stuff
 import MySQLdb
 
-#datastring = urllib2.urlopen(url).read()
-import urllib2
+#datastring = urllib.urlopen(url).read()
+import urllib
 
 #jsonarray = json.loads(jsonstring)
 #jsonstring = json.dumps(jsonarray)
@@ -50,17 +50,12 @@ encREDDITbotid = "???"
 
 #DECRYPTION KEY
 decryptionkey = "??????????"
-
-
+-
 # BANNED USERS
 bannedusers = []
 
 # BOTSTATUS (DOWN/UP)
 botstatus = "down"
-
-#INIT Exchange rate
-exchangerate = 0
-exchangeratelastupdated=0
 
 #Timings to do things
 #update exchange rate from the charts every 3 hours
@@ -121,21 +116,37 @@ def decrypt(key, encoded):
     return plaintext
 	
 	
-	
-def getAllowedSubreddits():
+#manage allowed subreddits by those subscribed to by user bitcointip
+def refreshAllowedSubreddits():
+	global allowedsubreddits
+	allowedsubreddits = []
 	getreddits = reddit.user.my_reddits()
 	for subreddit in getreddits:
 		allowedsubreddits.append(subreddit.display_name.lower())
 		print ("Got allowed subreddits:", allowedsubreddits)
 
 		
-def getFriends():
+		
+#manage friends by those that have flair on the bitcointip subreddit
+def refreshFriends():
+    global friendsofbitcointip
+    friendsofbitcointip = []
+    bitcointipsubreddit = reddit.get_subreddit("bitcointip")
+    bitcointipfriends = bitcointipsubreddit.flair_list()
+    for x in bitcointipfriends:
+        friendsofbitcointip.append(x['user'].lower())
 
-	#todo
-	#get list of friends from mysql table.
-	#friendsjson = tableentry
-	#friendsarray = decode json
-	friendsOfBitcointip = friendsarray
+
+		
+#manage banned users by banned from bitcointip subreddit
+def refreshBannedUsers():
+    global bannedusers
+    bannedusers = []
+    bitcointipsubreddit = reddit.get_subreddit("bitcointip")
+    bitcointipbanned = bitcointipsubreddit.get_banned()
+    for x in bitcointipbanned:
+	    bannedusers.append(x.name.lower())
+
 
 
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
@@ -1173,7 +1184,7 @@ def eval_comments():
 	
 	multi_reddits = reddit.get_subreddit(multiredditstring)
 	
-	#go through comments of allowed subreddits
+	#go through comments of allowed subreddits but NOT friendsofbitcointip
 	
 	lastcommentevaluatedtimestamp = #todo get from mysql table
 	
@@ -1232,7 +1243,7 @@ def submit_messages():
 		if (stop == 0):
 			print ("Trying to go through each unsent message/comment")
 			type = row[1]
-			replyto = row[2]
+			replyto = row[2] #user if type=message, permalink if type=comment
 			subject = row[3]
 			text = row[4]
 			captchaid = row[5]
@@ -1243,69 +1254,46 @@ def submit_messages():
 			print ("Type:", type)
 			
 			if ( type == "comment" ): 
+				comment = reddit.get_submission(replyto).comments[0]
 				
-				#try to post comment reply
-				#comment = submission.comments[0] ?
-				#comment.reply('test') ?
-				
-				#TODO
-				#what is proper way to send a reply to a comment?
-				#use praw here
-				comment = make_comment_object( with thingid=replyto)
-				sendresult = comment.reply(text)
-				
-				print ("Tried to send comment.")
-				
-				#TODO based on sendresult, mark message sent?
-				if( sendresult == "sent"? ):
+				try:
+					comment.reply(text)
+					print ("Comment Sent")
 					##it worked.
-					$sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
+					sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
 					mysqlcursor.execute(sql)
 					mysqlcon.commit()
-					print ("Comment delivered")
+					print ("Comment Marked as delivered")
 					
-				else if ( sendresult == "ratelimited"? ):
-					##it wasn't sent
-					print ("Not sent... stopping...")
-					stop = 1
-					
-				else if ( sendresult == "error" ):
-					$sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=x WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
-					mysqlcursor.execute(sql)
-					mysqlcon.commit()
-					print ("Comment not sent because of error.")
+				except Exception as e:
+					print ("Error:",e)
+					print ("Comment not delivered...skipping for now.")
 				
 
 			if ( type == "message" ): 
 				
 				#try to send a personal message
+				try:
+					reddit.send_message(replyto,subject,message)
+					print ("message sent")
+						sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
+						mysqlcursor.execute(sql)
+						mysqlcon.commit()
+						print ("Message marked as delivered")
+						
+				except Exception as e:
+					print ("message not sent", e)
+					if (e == "Error `that user doesn't exist` on field `to`"):
+						#user doesn't exist, cancel the message
+						sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=x WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
+						mysqlcursor.execute(sql)
+						mysqlcon.commit()
+						print ("user doesn't exist. message cancelled.")
+
 				
-				#TODO
-				#what is proper way to send a reply to a message and it's output?
-				#use praw here
-				sendresult = reddit.compose_message(replyto, subject, test)
-				
-				print ("Tried to send message.")
-				
-				#TODO based on sendresult, mark message sent?
-				if( sendresult == "sent"? ):
-					##it worked.
-					$sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
-					mysqlcursor.execute(sql)
-					mysqlcon.commit()
-					print ("Message delivered")
 					
-				else if ( sendresult == "ratelimited"? ):
-					##it wasn't sent
-					print ("Not sent... stopping...")
-					stop = 1
-					
-				else if ( sendresult == "error" ):
-					#user doesn't exist or some other reason to cancel the message
-					$sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=x WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
-					mysqlcursor.execute(sql)
-					mysqlcon.commit()
-					print ("Message not sent because of error.")
+
+
 
 
 
@@ -1341,11 +1329,21 @@ bitcoind.access = ServiceProxy(jsonRPCClientString)
 reddit = praw.Reddit(user_agent = "bitcointip bot by /u/nerdfightersean https://github.com/NerdfighterSean/bitcointip")
 reddit.login(decREDDITbotusername, decREDDITbotpassword)
 
+#get list of allowed subreddits by checking bitcointip's reddits/mine
 allowedsubreddits = []
-getAllowedSubreddits()
+refreshAllowedSubreddits()
 
-friendsOfBitcointip = []
-getFriendsOfBitcointip()
+#get list of friends from the table todo
+friendsofbitcointip = []
+refreshFriends()
+
+#get list of banned users
+bannedusers = []
+refreshBannedUsers()
+
+#INIT Exchange rate
+exchangerate = 0
+exchangeratelastupdated = 0
 
 looping = 1
 # WHILE THE BOT DOESN'T HAVE ANY PROBLEMS, KEEP LOOPING OVER EVALUATING COMMENTS, MESSAGES, AND SUBMITTING REPLIES
@@ -1383,3 +1381,9 @@ while(looping):
 #LOCK BITCOIND WALLET AT PROGRAM END
 print "Locking Bitcoin Wallet"
 print (bitcoind.walletlock())
+
+#todo: evaluate comments and messages in the order that they were made.
+
+#todo: handle downtime with all the services.  If downtime is detected with bitcoind,mysql, or reddit, pause the service for a bit and try again.
+
+#todo: if service is paused for too long, send email to admin with the problem.
