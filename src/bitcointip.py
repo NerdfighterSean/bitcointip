@@ -9,7 +9,7 @@ import base64
 #txid = bitcoind.transact(fromthing, tothing, amount)
 import bitcoind
 
-#timestamp = time.time()
+#timestamp = round(time.time())
 import time
 
 #mysql database stuff
@@ -25,17 +25,9 @@ import json
 #regex stuff
 import re
 
-	
-#todo round time.time() to nearest second.
-######################################################################
-#SETTINGS AND OPTIONS
-######################################################################
 #Encrypt/Decrypt settings
 KEY_SIZE = 16
 BLOCK_SIZE = 32
-
-
-
 
 ######################################################################
 #FUNCTIONS
@@ -44,71 +36,63 @@ BLOCK_SIZE = 32
 def encrypt(key, plaintext):
     padded_key = key.ljust(KEY_SIZE, '\0')
     padded_text = plaintext + (BLOCK_SIZE - len(plaintext) % BLOCK_SIZE) * '\0'
-
     # could also be one of
     #if len(plaintext) % BLOCK_SIZE != 0:
     #    padded_text = plaintext.ljust((len(plaintext) / BLOCK_SIZE) + 1 * BLOCKSIZE), '\0')
     # -OR-
     #padded_text = plaintext.ljust((len(plaintext) + (BLOCK_SIZE - len(plaintext) % BLOCK_SIZE)), '\0')
-
     r = rijndael.rijndael(padded_key, BLOCK_SIZE)
-
     ciphertext = ''
     for start in range(0, len(padded_text), BLOCK_SIZE):
         ciphertext += r.encrypt(padded_text[start:start+BLOCK_SIZE])
-
     encoded = base64.b64encode(ciphertext)
-
     return encoded
 
 
 def decrypt(key, encoded):
     padded_key = key.ljust(KEY_SIZE, '\0')
-
     ciphertext = base64.b64decode(encoded)
-
     r = rijndael.rijndael(padded_key, BLOCK_SIZE)
-
     padded_text = ''
     for start in range(0, len(ciphertext), BLOCK_SIZE):
         padded_text += r.decrypt(ciphertext[start:start+BLOCK_SIZE])
-
     plaintext = padded_text.split('\x00', 1)[0]
-
     return plaintext
 	
 	
 #manage allowed subreddits by those subscribed to by user bitcointip
 def refresh_allowed_subreddits():
-	global allowedsubreddits
-	allowedsubreddits = []
+	global _allowedsubreddits
+	_allowedsubreddits = []
 	getreddits = reddit.user.my_reddits()
 	for subreddit in getreddits:
-		allowedsubreddits.append(subreddit.display_name.lower())
-		print ("Got allowed subreddits:", allowedsubreddits)
+		_allowedsubreddits.append(subreddit.display_name.lower())
+	print ("Got allowed subreddits:", _allowedsubreddits)
 
 		
 		
 #manage friends by those that have flair on the bitcointip subreddit
 def refresh_friends():
-    global friendsofbitcointip
-    friendsofbitcointip = []
+    global _friendsofbitcointip
+    _friendsofbitcointip = []
     bitcointipsubreddit = reddit.get_subreddit("bitcointip")
     bitcointipfriends = bitcointipsubreddit.flair_list()
     for x in bitcointipfriends:
         if (x['flair_css_class']=="bitcoin"):
-            friendsofbitcointip.append(x['user'].lower())
+            _friendsofbitcointip.append(x['user'].lower())
+	print ("Got friends of bitcointip:", _friendsofbitcointip)
 
 
 		
 #manage banned users by banned from bitcointip subreddit
 def refresh_banned_users():
-    global bannedusers
-    bannedusers = []
+    global _bannedusers
+    _bannedusers = []
     bitcointipsubreddit = reddit.get_subreddit("bitcointip")
     bitcointipbanned = bitcointipsubreddit.get_banned()
     for x in bitcointipbanned:
-	    bannedusers.append(x.name.lower())
+	    _bannedusers.append(x.name.lower())
+	print ("Got banned users:", _bannedusers)
 
 
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
@@ -117,9 +101,11 @@ def refresh_exchange_rate():
 
 	exchangecode = "mtgox"
 	type = "avg"
+	global _exchangerate
+	global _exchangeratelastupdated
 
 	#if exchangeratetime is less than 3 hours ago, do nothing
-	if ( ((time.time() - exchangeratelastupdated)<(updateexchangerateinterval)) ):
+	if ( ((round(time.time()) - _exchangeratelastupdated)<(_updateexchangerateinterval)) ):
 		break
 
 	#else if the timestamp is over 3 hours old, update the exchangerates
@@ -128,13 +114,14 @@ def refresh_exchange_rate():
 		jsonstring = urllib2.urlopen(jsonurl).read()
 		jsonarray = json.loads(jsonstring) 
 
-		for (symbol, rate) in exchangerate:
+		for (symbol, rate) in _exchangerate:
 			for (i, item) in enumerate(jsonarray):
 				if (jsonarray[i]['symbol'] == (exchangecode+symbol)):
-					exchangerate[symbol] = jsonarray[i][type]
-					exchangerate[symbol] = round(exchangerate[symbol],2)
-					print ("exchangerate" + symbol + "updated to" + exchangerate[symbol])
-		exchangeratelastupdated = time.time()
+					_exchangerate[symbol] = jsonarray[i][type]
+					_exchangerate[symbol] = round(_exchangerate[symbol],2)
+					print ("exchangerate" + symbol + "updated to" + _exchangerate[symbol])
+		_exchangeratelastupdated = round(time.time())
+		#todo write all updated times to table
 				
 
 #addUser	
@@ -147,9 +134,9 @@ def add_user(username):
 		return "error"
 	else:
 		#add them to TABLE_USERS
-		sql = "INSERT INTO TEST_TABLE_USERS (user_id, username, address, balance, datejoined) VALUES ('%s', '%s', '%s', '%f', '%d')" % ('', username, newuseraddress, 0.00000000, time())
-		mysqlcursor.execute(sql)
-		mysqlcon.commit()
+		sql = "INSERT INTO TEST_TABLE_USERS (user_id, username, address, balance, datejoined) VALUES ('%s', '%s', '%s', '%f', '%d')" % ('', username, newuseraddress, 0.00000000, round(time.time()))
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
 		print ("User (%s) added with address (%s)") % (username, newuseraddress)
 
 
@@ -162,22 +149,22 @@ def update_lastactive(username):
 	userhasbeenactive = 0
 	
 	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTACTIVE_%s'" % (username)
-	mysqlcursor.execute(sql)
-	results = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	results = _mysqlcursor.fetchall()
 	for row in results:
-		userhasbeenactive = 1
+		userhasbeenactive = True
 	
 	
-	if (userhasbeenactive == 1):
+	if (userhasbeenactive):
 		#update username's lastactive time
-		sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='LASTACTIVE_%s'" % ( time.time(), username)
-		mysqlcursor.execute(sql)
-		mysqlcon.commit()
+		sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='LASTACTIVE_%s'" % ( round(time.time()), username)
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
 	else
 		#insert username's lastactive time
-		sql = "INSERT INTO TEST_TABLE_RECENT (type, timestamp) VALUES ('LASTACTIVE_%s', '%d')" % (username, time.time())
-		mysqlcursor.execute(sql)
-		mysqlcon.commit()
+		sql = "INSERT INTO TEST_TABLE_RECENT (type, timestamp) VALUES ('LASTACTIVE_%s', '%d')" % (username, round(time.time()))
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
 
 
 #getUserBalance
@@ -217,8 +204,8 @@ def get_user_gift_amount(username):
 
 	sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (username)
 
-	mysqlcursor.execute(sql)
-	results = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	results = _mysqlcursor.fetchall()
 	for row in results:
 		giftamount = row[5]
 		return giftamount
@@ -236,17 +223,17 @@ def get_user_gift_amount(username):
 def has_user_redeemed_karma(username):
 
 	sql = "SELECT * FROM TEST_TABLE_FAUCET_PAYOUTS WHERE username='%s'" % (username)
-	mysqlcursor.execute(sql)
-	results = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	results = _mysqlcursor.fetchall()
 	for row in results:
-		alreadyredeemed = 1
+		alreadyredeemed = True
 		
-	if (alreadyredeemed == 1):
+	if (alreadyredeemed):
 		print ("user has redeemed karma already.")
-		return 1
+		return True
 	else:
 		print ("user has not redeemed karma yet.")
-		return 0
+		return False
 
 
 #doesTransactionExist
@@ -254,14 +241,14 @@ def has_user_redeemed_karma(username):
 def does_transaction_exist(sender, receiver, timestamp):
 
 	sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE sender_username='%s' AND receiver_username='%s' AND timestamp='%d'" % (sender, receiver, timestamp)
-	mysqlcursor.execute(sql)
-	results = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	results = _mysqlcursor.fetchall()
 	for row in results:
 		#transaction already processed
-		return 1
+		return True
 	
 	#transaction doesn't exist.
-	return 0
+	return False
 
 	
 #create footer for the end of all PMs
@@ -280,7 +267,7 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 	print ("doing transaction")
 	
 	#Search for transaction in transaction list to prevent double processing!
-	if ( does_transaction_exist(transaction_from, transaction_to, tip_timestamp) == 1):
+	if (does_transaction_exist(transaction_from, transaction_to, tip_timestamp)):
 		print ("Transaction does already exist.")
 		return ("cancelled")
 
@@ -293,15 +280,15 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 	if (txid != "error"):
 		status = "pending"
 		
-		if (bitcoind.validateaddress(transaction_to)['isvalid'] == True):
+		if (bitcoind.validateaddress(transaction_to)['isvalid']):
 			#we are sending to an address (not reversable)
 			status = "completed"
 	
 		
 		#do a transaction from sender to reciever for amount. put into TABLE_TRANSACTIONS
 		sql = "INSERT INTO TEST_TABLE_TRANSACTIONS (transaction_id, sender_username, sender_address, receiver_username, receiver_address, amount_BTC, amount_USD, type, url, subreddit, timestamp, verify, statusmessage, status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % (txid, transaction_from, transaction_from, transaction_to, transaction_to, transaction_amount, round(transaction_amount*exchangerate['USD'],2), tip_type, tip_id, tip_subreddit, tip_timestamp, "null", "null", status)
-		mysqlcursor.execute(sql)
-		mysqlcon.commit()
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
 	
 	
 		#if tip is to bitcointip, add tip to giftamount for sender.
@@ -309,8 +296,8 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 			oldgiftamount = get_user_giftamount(transaction_from)
 			newgiftamount = oldgiftamount + transaction_amount
 			sql = "UPDATE TEST_TABLE_USERS SET giftamount='%d' WHERE username='%s'" % (newgiftamount, transaction_from)
-			mysqlcursor.execute(sql)
-			mysqlcon.commit()
+			_mysqlcursor.execute(sql)
+			_mysqlcon.commit()
 			
 			bitcointipsubreddit = reddit.get_subreddit("bitcointip")
 			#based on newgiftamount, set flair and make friend if applicable
@@ -330,8 +317,8 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 				
 			#make all transactions to 'bitcointip' completed
 			sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE receiver_username='bitcointip'" 
-			mysqlcursor.execute(sql)
-			mysqlcon.commit()
+			_mysqlcursor.execute(sql)
+			_mysqlcon.commit()
 		
 		print ("Transaction Successful")
 		
@@ -342,8 +329,8 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 		
 		#even though canceled, enter into transaction list but as cancelled
 		sql = "INSERT INTO TEST_TABLE_TRANSACTIONS (transaction_id, sender_username, sender_address, receiver_username, receiver_address, amount_BTC, amount_USD, type, url, subreddit, timestamp, verify, statusmessage, status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % (txid, transaction_from, 'null', transaction_to, 'null', transaction_amount, round(transaction_amount*exchangerate['USD'],2), tip_type, tip_id, tip_subreddit, tip_timestamp, 'null', 'null', status)
-		mysqlcursor.execute(sql)
-		mysqlcon.commit()
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
 	
 	#cancelled or pending
 	
@@ -358,14 +345,14 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 #update_transactions
 #updates pending transactions to completed or reversed depending on receiver activity
 def update_transactions():
-
+ #todo add global timestamps to functions if needed
 	
 	##get TRANSACTIONS_UPDATED timestamp from TEST_TABLE_RECENT
 	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='TRANSACTIONS_UPDATED'"
-	mysqlcursor.execute(sql)
-	results = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	results = _mysqlcursor.fetchall()
 	for row in results:
-		lasttransactionsupdatedtimestamp = row[1]
+		_lasttransactionsupdatedtimestamp = row[1]
 
 	
 	
@@ -375,13 +362,13 @@ def update_transactions():
 	##do this once every day
 	##if (transactiontime + 21days)< receiverlastactive, process the reversal of the transaction to the senders new address, and set transactionstatus=reversed.
 
-	if ((lasttransactionsupdatedtimestamp+(updatetransactionsinterval)) <= time.time()):
+	if ((lasttransactionsupdatedtimestamp+(updatetransactionsinterval)) <= round(time.time())):
 		##if the transactions haven't been updated in 1 day, do the update.
 	
 		sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE status='pending'"
 
-		mysqlcursor.execute(sql)
-		results = mysqlcursor.fetchall()
+		_mysqlcursor.execute(sql)
+		results = _mysqlcursor.fetchall()
 		for row in results:
 			transactionid = row[0]
 			receiver = row[3]
@@ -391,16 +378,16 @@ def update_transactions():
 			
 			#get receiver lastactive time
 			sql = "SELECT timestamp FROM TEST_TABLE_RECENT WHERE type='LASTACTIVE_%s'" % (receiver)
-			mysqlcursor.execute(sql)
-			resultsb = mysqlcursor.fetchall()
+			_mysqlcursor.execute(sql)
+			resultsb = _mysqlcursor.fetchall()
 			for row in resultsb:
 				receiverlastactive = row[1]
 			if (receiverlastactive > timestamp):
 				#mark transaction as completed because user has been active after transaction
 				sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s" % (transactionid)
-				mysqlcursor.execute(sql)
-				mysqlcon.commit()
-			else if ( (time.time()) > (timestamp + canceltransactionsinterval) and timestamp > receiverlastactive):
+				_mysqlcursor.execute(sql)
+				_mysqlcon.commit()
+			else if ( round(time.time()) > (timestamp + canceltransactionsinterval) and timestamp > receiverlastactive):
 				#transaction is older than 21 days and pending...mark as cancelled.
 				##check to make sure the reciever has enough
 				receiverbalance = get_user_balance(receiver)
@@ -413,21 +400,21 @@ def update_transactions():
 					##mark the transaction as reversed in the table
 					if(reversalstatus != "error"):
 						sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='reversed' WHERE transaction_id='%s'" % (transactionid)
-						mysqlcursor.execute(sql)
-						mysqlcon.commit()
+						_mysqlcursor.execute(sql)
+						_mysqlcon.commit()
 						print ("Transaction reversed: ", transactionid)
 					else:
 						##the user doesn't have enough to reverse the transaction, they must have spent it in another way.
 						sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
-						mysqlcursor.execute(sql)
-						mysqlcon.commit()
+						_mysqlcursor.execute(sql)
+						_mysqlcon.commit()
 						print ("Transaction completed (user already spent funds):", transactionid)
 				else:
 					## the receiver doesn't have enough.  They must have already spent it
 					##mark as completed instead of reversed.
 					sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
-					mysqlcursor.execute(sql)
-					mysqlcon.commit()
+					_mysqlcursor.execute(sql)
+					_mysqlcon.commit()
 					print ("Transaction completed (user already spent funds):", transactionid)
 			
 
@@ -436,8 +423,8 @@ def update_transactions():
 		#Get ready to send out weekly notifications to users who have pending transactions to them that they need to accept.
 		##get TRANSACTIONS_NOTIFIED timestamp from TEST_TABLE_RECENT
 		sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='TRANSACTIONS_NOTIFIED'"
-		mysqlcursor.execute(sql)
-		results = mysqlcursor.fetchall()
+		_mysqlcursor.execute(sql)
+		results = _mysqlcursor.fetchall()
 		for row in results:
 			lasttransactionsnotifiedtimestamp = row[1]
 			print ("Last Notify Time:", lasttransactionsnotifiedtimestamp)
@@ -446,28 +433,28 @@ def update_transactions():
 	
 		
 		##do notifications weekly, not daily.
-		if ((lasttransactionsnotifiedtimestamp+(notifytransactionsinterval)) <= time.time()):
+		if ((lasttransactionsnotifiedtimestamp+(notifytransactionsinterval)) <= round(time.time())):
 			print ("<br><br>Going through each user to see if need to notify")
 	
 			##go through each user and compile list of pending transactions to them.
 			sql = "SELECT * FROM TEST_TABLE_USERS WHERE 1"
-			mysqlcursor.execute(sql)
-			result = mysqlcursor.fetchall()
+			_mysqlcursor.execute(sql)
+			result = _mysqlcursor.fetchall()
 			for row in result:
 				username = row[1]
 				havependingtransaction = 0
 				
 				sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE receiver_username='%s' AND status='pending' ORDER BY timestamp ASC" % (username)
-				mysqlcursor.execute(sql)
-				resultb = mysqlcursor.fetchall()
+				_mysqlcursor.execute(sql)
+				resultb = _mysqlcursor.fetchall()
 				for row in resultb:
-					havependingtransaction = 1
+					havependingtransaction = True
 					oldesttransaction = row[10]
 			
-				if (havependingtransaction == 1)
+				if (havependingtransaction):
 				
 					print (username, " has a pending transaction")
-					message = "One or more of your received tips is pending.  If you do not take action, your account will be charged and the tip will be returned to the sender.  To finalize your ownership of the tip, send a message to bitcointip with ACCEPT in the message body.  The oldest pending tip(s) will be returned to the sender in ~%d days." % (round((oldesttransaction+(canceltransactionsinterval) - time.time())/(60*60*24)))
+					message = "One or more of your received tips is pending.  If you do not take action, your account will be charged and the tip will be returned to the sender.  To finalize your ownership of the tip, send a message to bitcointip with ACCEPT in the message body.  The oldest pending tip(s) will be returned to the sender in ~%d days." % (round((oldesttransaction+(canceltransactionsinterval) - round(time.time()))/(60*60*24)))
 					
 					##Add on a list of transactions since $oldesttransaction
 					##add first line of transaction table headers to the response.
@@ -475,8 +462,8 @@ def update_transactions():
 					k = 0
 
 					sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE (sender_username='%s' OR receiver_username='%s' ) AND timestamp>=%d ORDER BY timestamp DESC" % (username, username, oldesttransaction)
-					mysqlcursor.execute(sql)
-					resultc = mysqlcursor.fetchall()
+					_mysqlcursor.execute(sql)
+					resultc = _mysqlcursor.fetchall()
 					for row in resultc:
 						if (k<10):
 							sender = row[1]
@@ -513,9 +500,9 @@ def update_transactions():
 					message = message + get_footer(username)
 				
 					##put message in to submit table
-					sql = "INSERT INTO TEST_TABLE_TOSUBMIT (type, replyto, subject, text, captchaid, captchasol, sent, timestamp) VALUES ('message', '%s', 'Bitcointip Pending Transaction(s) Notice', '%s', '', '', '0', '%d')" % (username, message, time.time())
-					mysqlcursor.execute(sql)
-					mysqlcon.commit()
+					sql = "INSERT INTO TEST_TABLE_TOSUBMIT (type, replyto, subject, text, captchaid, captchasol, sent, timestamp) VALUES ('message', '%s', 'Bitcointip Pending Transaction(s) Notice', '%s', '', '', '0', '%d')" % (username, message, round(time.time()))
+					_mysqlcursor.execute(sql)
+					_mysqlcon.commit()
 				
 					print ("<br><br>Notification of Pending transactions prepared for $username")
 					
@@ -523,17 +510,17 @@ def update_transactions():
 		
 			if (lasttransactionsnotifiedtimestamp == 0):
 				##if listing doesn't exist, insert
-				sql = "INSERT INTO TEST_TABLE_RECENT (type,timestamp) values('TRANSACTIONS_NOTIFIED', '%d')" % (time.time())
-				mysqlcursor.execute(sql)
-				mysqlcon.commit()
+				sql = "INSERT INTO TEST_TABLE_RECENT (type,timestamp) values('TRANSACTIONS_NOTIFIED', '%d')" % (round(time.time()))
+				_mysqlcursor.execute(sql)
+				_mysqlcon.commit()
 				print ("<br><br>TRANSACTIONS_INSERTED(NOTIFIED) to ")
 				
 			else:
 				
 				##else update
-				sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='TRANSACTIONS_NOTIFIED'" % (time.time())
-				mysqlcursor.execute(sql)
-				mysqlcon.commit()
+				sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='TRANSACTIONS_NOTIFIED'" % (round(time.time()))
+				_mysqlcursor.execute(sql)
+				_mysqlcon.commit()
 				print ("<br><br>TRANSACTIONS_UPDATED(NOTIFIED) to ")
 				
 			
@@ -549,16 +536,16 @@ def update_transactions():
 		##update TRANSACTIONS_UPDATED timestamp from TEST_TABLE_RECENT to time()
 		if (lasttransactionsupdatedtimestamp == 0):
 			##if listing doesn't exist, insert
-			sql = "INSERT INTO TEST_TABLE_RECENT (type,timestamp) values('TRANSACTIONS_UPDATED', '"%d"')" % (time.time())
-			mysqlcursor.execute(sql)
-			mysqlcon.commit()
+			sql = "INSERT INTO TEST_TABLE_RECENT (type,timestamp) values('TRANSACTIONS_UPDATED', '"%d"')" % (round(time.time()))
+			_mysqlcursor.execute(sql)
+			_mysqlcon.commit()
 			print ("<br><br>TRANSACTIONS_INSERTED(UPDATED) to ")
 			
 		else:
 			##else update
-			sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='TRANSACTIONS_UPDATED'" % (time.time())
-			mysqlcursor.execute(sql)
-			mysqlcon.commit()
+			sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='TRANSACTIONS_UPDATED'" % (round(time.time()))
+			_mysqlcursor.execute(sql)
+			_mysqlcon.commit()
 			print ("<br><br>TRANSACTIONS_UPDATED(UPDATED) to ")
 	else:
 		print ("<br><br> Hasn't beena day yet.")
@@ -570,14 +557,15 @@ def eval_tip(thing):
 	
 	#See if the message author has a bitcointip account, if not, ignore them.  Must send PM to bot to sign up.
 	sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (thing.author.name)
-	mysqlcursor.execute(sql)
-	result = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	result = _mysqlcursor.fetchall()
+	userhasaccount = False
 	for row in result:
-		userhasaccount = 1
+		userhasaccount = True
 
 	#ignore user if they don't have an account.
-	if (userhasaccount == 0)
-		return 0
+	if (!userhasaccount)
+		return False
 	
 	##List the properties the tip could have
 	transaction_from = thing.author.name
@@ -746,8 +734,8 @@ def eval_tip(thing):
 		#if comment reply is prepared, send it
 		#enter reply into table
 		sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", tip_type, comment.permalink, "", commentreplymessage, "", "", 0, tip_timestamp)
-		mysqlcursor.execute(sql)
-		mysqlcon.commit()
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
 		
 		
 	
@@ -769,8 +757,8 @@ def eval_tip(thing):
 		#if pm to sender is prepared, send it
 		#enter message into table
 		sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", tip_type, transaction_from, pmsendersubject, pmsendermessage, "", "", 0, tip_timestamp)
-		mysqlcursor.execute(sql)
-		mysqlcon.commit()
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
 	
 	#Send a message to the receiver under what conditions?
 	#only PM receiver if tip_type is a message and success
@@ -786,15 +774,15 @@ def eval_tip(thing):
 		#if pm to receiver is prepared, send it
 		#enter message into table
 		sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", tip_type, transaction_to, pmreceiversubject, pmreceivermessage, "", "", 0, tip_timestamp)
-		mysqlcursor.execute(sql)
-		mysqlcon.commit()
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
 			
 	if (tip_command):
 		#tip found and done
-		return 1
+		return True
 	else:
 		#no tip in this text
-		return 0
+		return False
 
 	
 #find_message_command
@@ -802,20 +790,21 @@ def eval_tip(thing):
 def find_message_command(message): #array
 	
 	
-	if (botstatus == "down")
+	if (_botstatus == "down")
 		#if down, just reply with a down message to all messages
 		returnstring = "The bitcointip bot is currently down.\n\n[Click here for more information about the bot.](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/)\n\n[Click here for more information about bitcoin.](http://www.weusecoins.com/)\n\n[Click here to get a bitcoin wallet.](https://blockchain.info/wallet/)"
 		return returnstring
 	
-	userhasaccount = 0
+
 	#See if the message author has a bitcointip account, if not, make one for them.
 	sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (message.author.name)
-	mysqlcursor.execute(sql)
-	result = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	result = _mysqlcursor.fetchall()
+	userhasaccount = False
 	for row in result:
-		userhasaccount = 1
+		userhasaccount = True
 
-	if (userhasaccount == 0)
+	if (!userhasaccount)
 		add_user(message.author.name)
 	
 	
@@ -843,26 +832,21 @@ def find_message_command(message): #array
 		#get balance of bitcoinfaucet
 		faucetbalance = get_user_balance("bitcointipfaucetdepositaddress")
 		
-		if ( has_user_redeemed_karma(message.author.name) == 0 ):
+		if (!has_user_redeemed_karma(message.author.name)):
 			#if not redeemed yet, check for a valid bitcoin address
 
 			print ("user has not redeemed karma yet.")
 
-			if ( bitcoind.validateaddress(karmabitcoinaddress)['isvalid'] == True ):
+			if (bitcoind.validateaddress(karmabitcoinaddress)['isvalid']):
 			
 				#valid bitcoin address detected
 
 				#get user's link karma and comment karms
 				print ("Valid bitcoin address detected: ", karmabitcoinaddress)
-				
-		
-				
-	
+
 				linkkarma = message.author.link_karma
 				commentkarma = message.author.comment_karma
 				totalkarma = linkkarma + commentkarma
-	
-				
 
 				#format all the bitcoin amounts correctly for messages and displaying and storage
 				
@@ -871,7 +855,7 @@ def find_message_command(message): #array
 				#print "bitcoin amount: ".number_format($karmabitcoinamount, 8, ".", "");
 				
 				#only give valid reddit users any bitcoins (check that karma is above a certain amount)
-				if ( linkkarma>minlinkkarma and commentkarma>mincommentkarma and totalkarma>mintotalkarma):
+				if ( (linkkarma>minlinkkarma) and (commentkarma>mincommentkarma) and (totalkarma>mintotalkarma)):
 					#User has enough karma
 					print ("user has enough karma")
 					
@@ -897,9 +881,9 @@ def find_message_command(message): #array
 							returnstring = "Your bitcoins are on their way.  Check the status here: http://blockchain.info/address/%s\n\nIf you do not want your bitcoins, consider passing them on to a [good cause](https://en.bitcoin.it/wiki/Donation-accepting_organizations_and_projects)." % (karmabitcoinaddress)
 							
 							#insert the transaction to the list of TABLE_FAUCET_PAYOUTS
-							sql = "INSERT INTO TEST_TABLE_FAUCET_PAYOUTS (transaction_id, username, address, amount, timestamp) VALUES ('%s', '%s', '%s', '%d', '%d')" % (txid, message.author.name, karmabitcoinaddress, bitcoinamount, time.time())
-							mysqlcursor.execute(sql)
-							mysqlcon.commit()
+							sql = "INSERT INTO TEST_TABLE_FAUCET_PAYOUTS (transaction_id, username, address, amount, timestamp) VALUES ('%s', '%s', '%s', '%d', '%d')" % (txid, message.author.name, karmabitcoinaddress, bitcoinamount, round(time.time()))
+							_mysqlcursor.execute(sql)
+							_mysqlcon.commit()
 
 						else:
 							#there was an error with blockchain, have the user try again later maybe.
@@ -941,8 +925,8 @@ def find_message_command(message): #array
 		k = 0
 
 		sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE sender_username='%s' OR receiver_username='%s' ORDER BY timestamp DESC" % (message.author.name, message.author.name)
-		mysqlcursor.execute(sql)
-		result = mysqlcursor.fetchall()
+		_mysqlcursor.execute(sql)
+		result = _mysqlcursor.fetchall()
 		for row in result:
 			if (k<11):
 				sender = row[1]
@@ -1021,7 +1005,7 @@ def find_message_command(message): #array
 			
 			print ("importstatus: ", importstatus)
 			
-				if (importstatus == true):
+				if (importstatus):
 			
 				authornewaddress = bitcoind.getaddressesbyaccount("thisisatemporarylabelthatnobodyshoulduse")[0]
 				authornewbalance = bitcoind.getbalance("thisisatemporarylabelthatnobodyshoulduse")
@@ -1035,8 +1019,7 @@ def find_message_command(message): #array
 				print ("setaccountold: ", setaccountold)
 				print ("setaccountnew: ", setaccountnew)
 				
-				#todo make sure values of true are True
-				if (setaccountold == true and setaccountnew == true):
+				if (setaccountold and setaccountnew):
 				
 					returnstring = "Replacement successful. Your new bitcoin address is: %s.\n\nYour old bitcoin address was: ~~%s~~." % (authornewaddress, authoroldaddress)
 				if (transfer.lower() == "y" and authoroldbalance != 0):
@@ -1052,8 +1035,8 @@ def find_message_command(message): #array
 				##update user table entry with new balance and new address
 
 				sql = "UPDATE TEST_TABLE_USERS SET address='%s' WHERE username='%s'" % (authornewaddress, message.author.name)
-				mysqlcursor.execute(sql)
-				mysqlcon.commit()
+				_mysqlcursor.execute(sql)
+				_mysqlcon.commit()
 				
 			else:
 				returnstring = "There was a problem setting up your new account. Post on the /r/bitcointip subreddit if you have a problem."
@@ -1078,7 +1061,7 @@ def find_message_command(message): #array
 	
 	##CHECK FOR MESSAGE TIP (take care of sending all messages here, return empty string, telling eval_messages to not send any more messages.
 	
-	if (eval_tip(message)==1)
+	if (eval_tip(message))
 		#if returns 1, then a tip was found.
 		#only do one command per message, so stop looking for more commands
 		#messages sent in eval_tip.
@@ -1090,7 +1073,7 @@ def find_message_command(message): #array
 	regex_help = re.compile("(HELP)",re.IGNORECASE)
 	command_help = regex_help.search(message.body)
 	
-	if (command and returnstring==""):
+	if (command_help and returnstring==""):
 		returnstring = "Check the [Help Page](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/)."
 		
 		
@@ -1110,8 +1093,8 @@ def find_message_command(message): #array
 	#insert returnstring into TEST_TABLE_TOSUBMIT
 	#enter message into table
 	sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", "message", message.author.name, returnsubject, returnstring, "", "", 0, message.created_utc)
-	mysqlcursor.execute(sql)
-	mysqlcon.commit()
+	_mysqlcursor.execute(sql)
+	_mysqlcon.commit()
 	
 	
 	}
@@ -1126,7 +1109,7 @@ def eval_messages():
 	#get some unread messages.
 	unread_messages = reddit.user.get_unread(limit=1000)
 	for message in unread_messages:
-		if (message.was_comment == False):
+		if (!message.was_comment):
 			#ignore self messages and bannedusers messages
 			if ((message.author.name != "bitcointip") and (message.author.name not in bannedusers)): 
 					#check message for command and reply
@@ -1154,8 +1137,8 @@ def eval_comments():
 	
 	#go through comments of allowed subreddits but NOT friendsofbitcointip
 	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTCOMMENT'"
-	mysqlcursor.execute(sql)
-	result = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	result = _mysqlcursor.fetchall()
 	for row in result:
 		lastcommentevaluatedtimestamp = row[1]
 	
@@ -1175,8 +1158,8 @@ def eval_comments():
 	lastcommentevaluatedtimestamp = first_comment_this_loop
 	#write updated lastcommentevaluatedtimestamp to table.
 	sql = "UPDATE TEST_TABLE_RECENT SET timestamp=lastcommentevaluatedtimestamp WHERE type='LASTCOMMENT'"
-	mysqlcursor.execute(sql)
-	mysqlcon.commit()
+	_mysqlcursor.execute(sql)
+	_mysqlcon.commit()
 	
 	#todo, create mysql initialization file and enter first entries.
 	#todo name global variables correctly
@@ -1186,8 +1169,8 @@ def eval_comments():
 	friends_reddit = reddit.get_subreddit("friends")
 	
 	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTFRIENDCOMMENT'"
-	mysqlcursor.execute(sql)
-	result = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	result = _mysqlcursor.fetchall()
 	for row in result:
 		lastfriendcommentevaluatedtimestamp = row[1]
 	
@@ -1206,8 +1189,8 @@ def eval_comments():
 	lastfriendcommentevaluatedtimestamp = first_comment_this_loop
 	#write updated lastfriendcommentevaluatedtimestamp to table.
 	sql = "UPDATE TEST_TABLE_RECENT SET timestamp=lastfriendcommentevaluatedtimestamp WHERE type='LASTFRIENDCOMMENT'"
-	mysqlcursor.execute(sql)
-	mysqlcon.commit()
+	_mysqlcursor.execute(sql)
+	_mysqlcon.commit()
 
 
 #submit_messages
@@ -1218,14 +1201,14 @@ def submit_messages():
 	#if reply is sent out, mark message as sent=1.
 	#if reply is not sent because of error, mark as sent=x.
 
-	stop = 0
+	going = True
 	
 	##go through list of tosubmit orderby timestamp from oldest to newest
 	sql = "SELECT * FROM TEST_TABLE_TOSUBMIT WHERE sent='0' ORDER BY timestamp ASC"
-	mysqlcursor.execute(sql)
-	result = mysqlcursor.fetchall()
+	_mysqlcursor.execute(sql)
+	result = _mysqlcursor.fetchall()
 	for row in result:
-		if (stop == 0):
+		if (going):
 			print ("Trying to go through each unsent message/comment")
 			type = row[1]
 			replyto = row[2] #user if type=message, permalink if type=comment
@@ -1246,8 +1229,8 @@ def submit_messages():
 					print ("Comment Sent")
 					##it worked.
 					sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
-					mysqlcursor.execute(sql)
-					mysqlcon.commit()
+					_mysqlcursor.execute(sql)
+					_mysqlcon.commit()
 					print ("Comment Marked as delivered")
 					
 				except Exception as e:
@@ -1262,8 +1245,8 @@ def submit_messages():
 					reddit.send_message(replyto,subject,message)
 					print ("message sent")
 						sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
-						mysqlcursor.execute(sql)
-						mysqlcon.commit()
+						_mysqlcursor.execute(sql)
+						_mysqlcon.commit()
 						print ("Message marked as delivered")
 						
 				except Exception as e:
@@ -1271,8 +1254,8 @@ def submit_messages():
 					if (e == "Error `that user doesn't exist` on field `to`"):
 						#user doesn't exist, cancel the message
 						sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=x WHERE type='%s' AND timestamp='%d' AND replyto='%s'" % (type, timestamp, replyto)
-						mysqlcursor.execute(sql)
-						mysqlcon.commit()
+						_mysqlcursor.execute(sql)
+						_mysqlcon.commit()
 						print ("user doesn't exist. message cancelled.")
 
 				
