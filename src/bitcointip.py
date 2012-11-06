@@ -26,7 +26,7 @@ import json
 import re
 
 	
-
+#todo round time.time() to nearest second.
 ######################################################################
 #SETTINGS AND OPTIONS
 ######################################################################
@@ -50,9 +50,6 @@ encREDDITbotid = "???"
 
 #DECRYPTION KEY
 decryptionkey = "??????????"
--
-# BANNED USERS
-bannedusers = []
 
 # BOTSTATUS (DOWN/UP)
 botstatus = "down"
@@ -134,7 +131,8 @@ def refreshFriends():
     bitcointipsubreddit = reddit.get_subreddit("bitcointip")
     bitcointipfriends = bitcointipsubreddit.flair_list()
     for x in bitcointipfriends:
-        friendsofbitcointip.append(x['user'].lower())
+        if (x['flair_css_class']=="bitcoin"):
+            friendsofbitcointip.append(x['user'].lower())
 
 
 		
@@ -148,7 +146,7 @@ def refreshBannedUsers():
 	    bannedusers.append(x.name.lower())
 
 
-
+#idea: add more currency support
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
 def getExchangeRate(symbol = "mtgoxUSD"):
 
@@ -170,32 +168,6 @@ def getExchangeRate(symbol = "mtgoxUSD"):
 				print ("exchange rate updated to: ", exchangerate)
 				return exchangerate
 				
-				
-				
-
-#subredditcheck
-#if subreddit is in list of allowedsubreddits, return 1.
-def subredditAllowed(subreddit):
-	
-	for (i, item) in enumerate(allowedsubreddits):
-		if (item.lower() == subreddit.lower()):
-			#subreddit allowed
-			return 1
-
-	#subreddit not allowed
-	return 0
-
-#userAllowed
-#if a user is not in list of banned users, return 1.
-def userAllowed(username):
-
-	for (i, item) in enumerate(bannedusers):
-		if (item.lower() == username.lower()):
-			#user not allowed
-			return 0
-
-	#user allowed
-	return 1
 
 #addUser	
 #add a user to the service and set them up with an address and account. returns "error" if unsuccessful.
@@ -372,6 +344,23 @@ def doTransaction(transaction_from, transaction_to, transaction_amount, tip_type
 			mysqlcursor.execute(sql)
 			mysqlcon.commit()
 			
+			bitcointipsubreddit = reddit.get_subreddit("bitcointip")
+			#based on newgiftamount, set flair and make friend if applicable
+			if (newgiftamount>=2):
+				#bitcoin level
+				#todo make friend
+				reddit.get_redditor(transaction_from).friend()
+				bitcointipsubreddit.set_flair("NerdfighterSean", "Friend of Bitcointip", "bitcoin")
+			elif (newgiftamount>=1):
+				#gold level
+				bitcointipsubreddit.set_flair("NerdfighterSean", "Friend of Bitcointip", "gold")
+			elif (newgiftamount>=0.5):
+				#silver level
+				bitcointipsubreddit.set_flair("NerdfighterSean", "Friend of Bitcointip", "silver")
+			elif (newgiftamount>=0.25):
+				#bronze level
+				bitcointipsubreddit.set_flair("NerdfighterSean", "Friend of Bitcointip", "bronze")
+				
 			#make all transactions to 'bitcointip' completed
 			sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE receiver_username='bitcointip'" 
 			mysqlcursor.execute(sql)
@@ -537,7 +526,7 @@ def update_transactions():
 							else:
 								receiver = receiver_username
 								
-							date = time.date("D M d, Y", $timestamp)#todo python equivalent
+							date = time.strftime("%a %d-%b-%Y", time.gmtime())
 
 							##add new transaction row to table being given to user
 							newrow = "| %s | %s | %s | %d | $%d | %s |\n" % (date, sender, receiver, amount_BTC, amount_USD, status)
@@ -619,6 +608,7 @@ def eval_tip(thing):
 	for row in result:
 		userhasaccount = 1
 
+	#ignore user if they don't have an account.
 	if (userhasaccount == 0)
 		return 0
 	
@@ -626,8 +616,7 @@ def eval_tip(thing):
 	tip_senderusername = thing.author.name
 	tip_timestamp = thing.created_utc
 	tip_id = thing.name
-	tip_subreddit = thing.subreddit.name
-	tip_type = #message or comment? todo
+	tip_subreddit = thing.subreddit.name.lower()
 	if (thing.dest=="bitcointip"):
 		tip_type = "message"
 	else:
@@ -690,9 +679,15 @@ def eval_tip(thing):
 	else if (tip_command_bitcoinaddress):
 		transaction_to = tip_command_bitcoinaddress
 	else if (tip_type == "comment"):
-		#recipient not specified
-		#get author of parent comment
-		transaction_to = #author of parent comment #todo use praw
+		#recipient not specified, get author of parent comment
+		linkid = comment.link_id[3:]
+		parentpermalink = somecomment.permalink.replace(comment.name[3:], comment.parent_id[3:])
+		print ("parentpermalink", parentpermalink)
+		if (linkid==new):
+			parentcomment = reddit.get_submission(parentpermalink)
+		else:
+			parentcomment = reddit.get_submission(parentpermalink).comments[0]
+		transaction_to = parentcomment.author.name
 	else if (tip_type == "message"):
 		#malformed tip
 		#must include recipient
@@ -743,9 +738,9 @@ def eval_tip(thing):
 		cancelmessage = "You cannot send an amount <= 0. That is just silly."
 	else if (transaction_amount+0.0005 > getUserBalance(transaction_from) and cancelmessage==""):
 		cancelmessage = "You do not have enough in your account.  You have %d BTC, but need %d BTC (do not forget about the 0.0005 BTC fee per transaction)." % (getUserBalance(transaction_from), transaction_amount+0.0005)
-	else if ( tip_type=="comment" and (subredditAllowed(tip_subreddit)==0) and (getUserGiftamount(transaction_from)<2) and cancelmessage==""):
+	else if ( tip_type=="comment" and (tip_subreddit not in allowedsubreddits) and (getUserGiftamount(transaction_from)<2) and cancelmessage==""):
 		cancelmessage = "The %s subreddit is not currently supported for you." % (tip_subreddit)
-	else if (userAllowed(transaction_from)==0 and tipsenderusername!="" and cancelmessage==""):
+	else if ((transaction_from in bannedusers) and tipsenderusername!="" and cancelmessage==""):
 		cancelmessage="You are not allowed to send or receive money."
 	else if (userAllowed(transaction_to)==0 and tipreceiverusername!="" and cancelmessage==""){
 		cancelmessage="The user %s is not allowed to send or receive money." % (transaction_to)
@@ -756,7 +751,6 @@ def eval_tip(thing):
 
 	if (!cancelmessage):
 		transaction_status = doTransaction(transaction_from, transaction_to, transaction_amount, tip_type, tip_id, tip_subreddit, tip_timestamp)
-		#todo, simplify doTransaction
 	
 	#based on the variables, form messages.
 	verifiedmessage = "[*%s &nbsp; >>>> &nbsp; %d BTC (~$%d) &nbsp; >>>> &nbsp; %s*](http://reddit.com/r/bitcointip)" % (transaction_from, transaction_amount, round(transaction_amount*getExchangeRate("mtgoxUSD"), 2), transaction_to)
@@ -775,7 +769,7 @@ def eval_tip(thing):
 	#Reply to a comment under what conditions?
 	#reply to a flip only if cancelmessage!="" 
 	#reply to a +1 internet only if it is a success
-	if (tip_type == "comment" and tip_command_verify.lower()!="noverify" and ((subredditAllowed(tip_subreddit)==1) or (getUserGiftamount(transaction_from)>=2))):
+	if (tip_type == "comment" and tip_command_verify.lower()!="noverify" and ((tip_subreddit in allowedsubreddits) or (getUserGiftamount(transaction_from)>=2))):
 		#Reply to the comment
 		if (transaction_status=="completed" or transaction_status=="pending"):
 			commentreplymessage = flipmessage
@@ -787,6 +781,9 @@ def eval_tip(thing):
 	if (commentreplymessage):
 		#if comment reply is prepared, send it
 		#enter reply into table todo
+		sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", tip_type, comment.permalink, "", commentreplymessage, "", "", 0, tip_timestamp)
+		mysqlcursor.execute(sql)
+		mysqlcon.commit()
 		
 		
 	
@@ -807,6 +804,9 @@ def eval_tip(thing):
 	if (pmsendermessage):
 		#if pm to sender is prepared, send it
 		#enter message into table todo
+		sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", tip_type, transaction_from, pmsendersubject, pmsendermessage, "", "", 0, tip_timestamp)
+		mysqlcursor.execute(sql)
+		mysqlcon.commit()
 	
 	#Send a message to the receiver under what conditions?
 	#only PM receiver if tip_type is a message and success
@@ -821,6 +821,9 @@ def eval_tip(thing):
 	if (pmreceivermessage):
 		#if pm to receiver is prepared, send it
 		#enter message into table todo
+		sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", tip_type, transaction_to, pmreceiversubject, pmreceivermessage, "", "", 0, tip_timestamp)
+		mysqlcursor.execute(sql)
+		mysqlcon.commit()
 			
 	if (tip_command):
 		#tip found and done
@@ -995,7 +998,7 @@ def find_message_command(message): #array
 				else:
 					receiver = receiver_username
 				
-				date = date("D M d, Y", $timestamp);#todo python
+				date = time.strftime("%a %d-%b-%Y", time.gmtime())
 				
 				
 				if (sender == message.author.name):
@@ -1026,10 +1029,9 @@ def find_message_command(message): #array
 		
 		returnstring += transactionhistorymessage
 
-	#REPLACE TODO
+	#Let user import a private key to use
 	###"REPLACE PRIVATE KEY WITH: $privatekey
 	###TRANSFER BALANCE: Y/N"
-	
 	regex_importkey = re.compile("((REPLACE PRIVATE KEY WITH:)( )?(5[a-zA-Z0-9]{35,60})(( )*(\n)*( )*)(TRANSFER BALANCE:)( )?(Y|N))",re.IGNORECASE)
 	command_importkey = regex_importkey.search(message.body)
 	
@@ -1143,9 +1145,13 @@ def find_message_command(message): #array
 
 		
 	##return returnstring;
-	
+	returnsubject = "Re: " + message.subject
 	#insert returnstring into TEST_TABLE_TOSUBMIT
-	#todo
+	#enter message into table
+	sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", "message", message.author.name, returnsubject, returnstring, "", "", 0, message.created_utc)
+	mysqlcursor.execute(sql)
+	mysqlcon.commit()
+	
 	
 	}
 
@@ -1160,7 +1166,8 @@ def eval_messages():
 	unread_messages = reddit.user.get_unread(limit=1000)
 	for message in unread_messages:
 		if (message.was_comment == False):
-			if (message.author.name != "bitcointip"):
+			#ignore self messages and bannedusers messages
+			if (message.author.name != "bitcointip" and (message.author.name not in bannedusers)): 
 					#check message for command
 					find_message_command(message)
 					#mark as read
@@ -1185,8 +1192,11 @@ def eval_comments():
 	multi_reddits = reddit.get_subreddit(multiredditstring)
 	
 	#go through comments of allowed subreddits but NOT friendsofbitcointip
-	
-	lastcommentevaluatedtimestamp = #todo get from mysql table
+	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTCOMMENT'"
+	mysqlcursor.execute(sql)
+	result = mysqlcursor.fetchall()
+	for row in result:
+		lastcommentevaluatedtimestamp = row[1]
 	
 	first_comment_this_loop = None
 	print ("checking")
@@ -1198,16 +1208,23 @@ def eval_comments():
 			print ("old comment")
 			break
 		else:
-			if (comment.author.name not in friendsOfBitcointip):#exclude friendsofbitcointip
+			if ((comment.author.name not in friendsofbitcointip) and (comment.author.name not in bannedusers)):#exclude friendsofbitcointip and banned users
 				#print ("(",comment.subreddit,")",comment.author,":",comment.body)
 				find_comment_command(comment)
 	lastcommentevaluatedtimestamp = first_comment_this_loop
 	#todo, write updated lastcommentevaluatedtimestamp to table.
+	
+	
 		
 	#now go through friendsofbitcointip
 	
 	friends_reddit = reddit.get_subreddit("friends")
-	lastfriendcommentevaluatedtimestamp = #todo get from mysql table
+	
+	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTFRIENDCOMMENT'"
+	mysqlcursor.execute(sql)
+	result = mysqlcursor.fetchall()
+	for row in result:
+		lastfriendcommentevaluatedtimestamp = row[1]
 	
 	first_comment_this_loop = None
 	print ("checking")
@@ -1216,7 +1233,7 @@ def eval_comments():
 		if not first_comment_this_loop:
 			first_comment_this_loop = comment.created_utc
 		if comment.created_utc <= lastfriendcommentevaluatedtimestamp:
-			print ("old comment")
+			print ("old comment reached")
 			break
 		else:
 			#print ("(",comment.subreddit,")",comment.author,":",comment.body)
