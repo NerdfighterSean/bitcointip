@@ -186,36 +186,6 @@ def add_user(username):
 		print ("User (%s) added with address (%s)") % (username, newuseraddress)
 
 
-'''
-#update_lastactive
-#deprecated
-#update the user's lastactive time
-def update_lastactive(username):
-	#check if user has been active at all.  If so, update, if not insert.
-	userhasbeenactive = 0
-	
-	lastactivetime = 
-	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTACTIVE_%s'" % (username)
-	_mysqlcursor.execute(sql)
-	results = _mysqlcursor.fetchall()
-	for row in results:
-		userhasbeenactive = True
-	
-	
-	if (userhasbeenactive):
-		#update username's lastactive time
-		sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='LASTACTIVE_%s'" % ( round(time.time()), username)
-		_mysqlcursor.execute(sql)
-		_mysqlcon.commit()
-	else
-		#insert username's lastactive time
-		sql = "INSERT INTO TEST_TABLE_RECENT (type, timestamp) VALUES ('LASTACTIVE_%s', '%d')" % (username, round(time.time()))
-		_mysqlcursor.execute(sql)
-		_mysqlcon.commit()
-		
-		'''
-
-
 #getUserBalance
 #Get the current balance of a user. returns "error" if unsuccessful
 def get_user_balance(username):
@@ -395,6 +365,9 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 #updates pending transactions to completed or reversed depending on receiver activity
 def update_transactions():
  #todo add global timestamps to functions if needed
+	
+	global _lastpendingupdatedtime
+	global _lastpendingnotifiedtime
 	
 	##get TRANSACTIONS_UPDATED timestamp from TEST_TABLE_RECENT
 	_lastpendingupdatedtime = get_last_time("lastpendingupdatedtime")
@@ -1116,6 +1089,10 @@ def find_message_command(message): #array
 #eval_messages
 #get new messages and go through each one looking for a command, then respond.
 def eval_messages():
+	
+	global _lastmessageevaluated
+	global _lastmessageevaluatedtime
+	
 	#get some unread messages.
 	newest_message_evaluated_time = None
 	
@@ -1150,6 +1127,12 @@ def find_comment_command(comment):
 #eval_comments
 # get new comments and go through each one looking for a command, then respond.
 def eval_comments():
+
+	global _lastcommentevaluatedtime
+	global _lastcommentevaluated
+	global _lastfriendcommentevaluatedtime
+	global _lastfriendcommentevaluated
+	
 	multiredditstring = ""
 	for x in allowedsubreddits:
 		multiredditstring += x + "+"
