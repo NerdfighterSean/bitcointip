@@ -50,23 +50,3 @@ Database structure
 	#3 balance (not used)
 	#4 datejoined
 	#5 giftamount
-	
-	
-	
-	
-######################################################################
-# INITIAL ROW INSERTS
-######################################################################
-
-	 #TEST_TABLE_RECENT
-	 type					timestamp		value
-	 
-	 lastcomment
-	 lastfriendcomment
-	 lastmessage
-	 allowedsubreddits
-	 friendsofbitcointip
-	 bannedusers
-	 exchangerate
-	 pendingupdated
-	 pendingnotified
