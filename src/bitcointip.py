@@ -59,69 +59,115 @@ def decrypt(key, encoded):
     plaintext = padded_text.split('\x00', 1)[0]
     return plaintext
 	
+#function for updating the timestamp of the most recent thing done
+def set_last_time(type, timestamp):
+
+	#check if user has been active at all.  If so, update, if not insert.
+	entryexists = False
+	
+	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='%s'" % (type)
+	_mysqlcursor.execute(sql)
+	results = _mysqlcursor.fetchall()
+	for row in results:
+		entryexists = True
+	
+	if (entryexists):
+		#update username's lastactive time
+		sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='%s'" % (timestamp, type)
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
+	else
+		#insert username's lastactive time
+		sql = "INSERT INTO TEST_TABLE_RECENT (type, timestamp) VALUES ('%s', '%d')" % (type, timestamp)
+		_mysqlcursor.execute(sql)
+		_mysqlcon.commit()
+
+def get_last_time(type):
+	#return a timestamp
+	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='%s'" % (type)
+	_mysqlcursor.execute(sql)
+	results = _mysqlcursor.fetchall()
+	for row in results:
+		timestamp = row[1]
+	return timestamp
+	
 	
 #manage allowed subreddits by those subscribed to by user bitcointip
 def refresh_allowed_subreddits():
-	global _allowedsubreddits
-	_allowedsubreddits = []
+	global _lastallowedsubredditsfetched
+	global _lastallowedsubredditsfetchedtime
+	_lastallowedsubredditsfetched = []
 	getreddits = reddit.user.my_reddits()
 	for subreddit in getreddits:
-		_allowedsubreddits.append(subreddit.display_name.lower())
-	print ("Got allowed subreddits:", _allowedsubreddits)
+		_lastallowedsubredditsfetched.append(subreddit.display_name.lower())
+	print ("Got allowed subreddits:", _lastallowedsubredditsfetched)
+	_lastallowedsubredditsfetchedtime = round(time.time())
+	set_last_time("lastallowedsubredditsfetchedtime",_lastallowedsubredditsfetchedtime)
+	set_last_time("lastallowedsubredditsfetched",json.dumps(_lastallowedsubredditsfetched))
 
 		
 		
 #manage friends by those that have flair on the bitcointip subreddit
 def refresh_friends():
-    global _friendsofbitcointip
-    _friendsofbitcointip = []
+    global _lastfriendsofbitcointipfetched
+	global _lastfriendsofbitcointipfetchedtime
+    _lastfriendsofbitcointipfetched = []
     bitcointipsubreddit = reddit.get_subreddit("bitcointip")
     bitcointipfriends = bitcointipsubreddit.flair_list()
     for x in bitcointipfriends:
         if (x['flair_css_class']=="bitcoin"):
-            _friendsofbitcointip.append(x['user'].lower())
-	print ("Got friends of bitcointip:", _friendsofbitcointip)
+            _lastfriendsofbitcointipfetched.append(x['user'].lower())
+	print ("Got friends of bitcointip:", _lastfriendsofbitcointipfetched)
+	_lastfriendsofbitcointipfetchedtime = round(time.time())
+	set_last_time("lastfriendsofbitcointipfetchedtime", _lastfriendsofbitcointipfetchedtime)
+	set_last_time("lastfriendsofbitcointipfetched", json.dumps(_lastfriendsofbitcointipfetched))
 
 
 		
 #manage banned users by banned from bitcointip subreddit
 def refresh_banned_users():
-    global _bannedusers
-    _bannedusers = []
+    global _lastbannedusersfetched
+	global _lastbannedusersfetchedtime
+    _lastbannedusersfetched = []
     bitcointipsubreddit = reddit.get_subreddit("bitcointip")
     bitcointipbanned = bitcointipsubreddit.get_banned()
     for x in bitcointipbanned:
-	    _bannedusers.append(x.name.lower())
-	print ("Got banned users:", _bannedusers)
-
+	    _lastbannedusersfetched.append(x.name.lower())
+	print ("Got banned users:", _lastbannedusersfetched)
+	_lastbannedusersfetchedtime = round(time.time())
+	set_last_time("lastbannedusersfetchedtime", _lastbannedusersfetchedtime)
+	set_last_time("lastbannedusersfetched", json.dumps(_lastbannedusersfetched))
 
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
 #USD,AUD,CAD,EUR,JPY,GBP
 def refresh_exchange_rate():
 
+
+	global _lastexchangeratefetched
+	global _lastexchangeratefetchedtime
+	
 	exchangecode = "mtgox"
 	type = "avg"
-	global _exchangerate
-	global _exchangeratelastupdated
 
-	#if exchangeratetime is less than 3 hours ago, do nothing
-	if ( ((round(time.time()) - _exchangeratelastupdated)<(_updateexchangerateinterval)) ):
+	#if exchangeratetime is less than updatetime hours ago, do nothing
+	if ( ((round(time.time()) - _lastexchangeratefetchedtime)<(_intervalupdateexchangerate)) ):
 		break
 
-	#else if the timestamp is over 3 hours old, update the exchangerates
+	#else if the timestamp is over updatetime hours old, update the exchangerates
 	else:
 		jsonurl = "http://bitcoincharts.com/t/markets.json"
 		jsonstring = urllib2.urlopen(jsonurl).read()
 		jsonarray = json.loads(jsonstring) 
 
-		for (symbol, rate) in _exchangerate:
+		for (symbol, rate) in _lastexchangeratefetched:
 			for (i, item) in enumerate(jsonarray):
 				if (jsonarray[i]['symbol'] == (exchangecode+symbol)):
-					_exchangerate[symbol] = jsonarray[i][type]
-					_exchangerate[symbol] = round(_exchangerate[symbol],2)
-					print ("exchangerate" + symbol + "updated to" + _exchangerate[symbol])
-		_exchangeratelastupdated = round(time.time())
-		#todo write all updated times to table
+					_lastexchangeratefetched[symbol] = jsonarray[i][type]
+					_lastexchangeratefetched[symbol] = round(_lastexchangeratefetched[symbol],2)
+					print ("exchangerate" + symbol + "updated to" + _lastexchangeratefetched[symbol])
+		_lastexchangeratefetchedtime = round(time.time())
+		set_last_time("lastexchangeratefetchedtime", _lastexchangeratefetchedtime)
+		set_last_time("lastexchangeratefetched", json.dumps(_lastexchangeratefetched))
 				
 
 #addUser	
@@ -140,14 +186,15 @@ def add_user(username):
 		print ("User (%s) added with address (%s)") % (username, newuseraddress)
 
 
-
+'''
 #update_lastactive
+#deprecated
 #update the user's lastactive time
 def update_lastactive(username):
-
 	#check if user has been active at all.  If so, update, if not insert.
 	userhasbeenactive = 0
 	
+	lastactivetime = 
 	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTACTIVE_%s'" % (username)
 	_mysqlcursor.execute(sql)
 	results = _mysqlcursor.fetchall()
@@ -165,6 +212,8 @@ def update_lastactive(username):
 		sql = "INSERT INTO TEST_TABLE_RECENT (type, timestamp) VALUES ('LASTACTIVE_%s', '%d')" % (username, round(time.time()))
 		_mysqlcursor.execute(sql)
 		_mysqlcon.commit()
+		
+		'''
 
 
 #getUserBalance
@@ -304,16 +353,16 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 			if (newgiftamount>=2):
 				#bitcoin level
 				reddit.get_redditor(transaction_from).friend()
-				bitcointipsubreddit.set_flair("NerdfighterSean", "Friend of Bitcointip", "bitcoin")
+				bitcointipsubreddit.set_flair(transaction_from, "Friend of Bitcointip", "bitcoin")
 			elif (newgiftamount>=1):
 				#gold level
-				bitcointipsubreddit.set_flair("NerdfighterSean", "Friend of Bitcointip", "gold")
+				bitcointipsubreddit.set_flair(transaction_from, "Friend of Bitcointip", "gold")
 			elif (newgiftamount>=0.5):
 				#silver level
-				bitcointipsubreddit.set_flair("NerdfighterSean", "Friend of Bitcointip", "silver")
+				bitcointipsubreddit.set_flair(transaction_from, "Friend of Bitcointip", "silver")
 			elif (newgiftamount>=0.25):
 				#bronze level
-				bitcointipsubreddit.set_flair("NerdfighterSean", "Friend of Bitcointip", "bronze")
+				bitcointipsubreddit.set_flair(transaction_from, "Friend of Bitcointip", "bronze")
 				
 			#make all transactions to 'bitcointip' completed
 			sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE receiver_username='bitcointip'" 
@@ -335,7 +384,7 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
 	#cancelled or pending
 	
 	#update lastactive for the sender because they are using tips
-	update_lastactive(transaction_from)
+	set_last_time("LASTACTIVE_"+transaction_from, round(time.time()))
 	
 	return status
 
@@ -348,25 +397,19 @@ def update_transactions():
  #todo add global timestamps to functions if needed
 	
 	##get TRANSACTIONS_UPDATED timestamp from TEST_TABLE_RECENT
-	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='TRANSACTIONS_UPDATED'"
-	_mysqlcursor.execute(sql)
-	results = _mysqlcursor.fetchall()
-	for row in results:
-		_lasttransactionsupdatedtimestamp = row[1]
-
+	_lastpendingupdatedtime = get_last_time("lastpendingupdatedtime")
 	
 	
-	print ("Last Update Time:", lasttransactionsupdatedtimestamp)
+	print ("Last Pending Transactions Update Time:", _lastpendingupdatedtime)
 		
 		
 	##do this once every day
 	##if (transactiontime + 21days)< receiverlastactive, process the reversal of the transaction to the senders new address, and set transactionstatus=reversed.
 
-	if ((lasttransactionsupdatedtimestamp+(updatetransactionsinterval)) <= round(time.time())):
+	if ((_lastpendingupdatedtime + (_intervalpendingupdate)) <= round(time.time())):
 		##if the transactions haven't been updated in 1 day, do the update.
 	
 		sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE status='pending'"
-
 		_mysqlcursor.execute(sql)
 		results = _mysqlcursor.fetchall()
 		for row in results:
@@ -376,19 +419,15 @@ def update_transactions():
 			timestamp = row[10]
 			transactionamount = row[5]
 			
-			#get receiver lastactive time
-			sql = "SELECT timestamp FROM TEST_TABLE_RECENT WHERE type='LASTACTIVE_%s'" % (receiver)
-			_mysqlcursor.execute(sql)
-			resultsb = _mysqlcursor.fetchall()
-			for row in resultsb:
-				receiverlastactive = row[1]
+
+			receiverlastactive = get_last_time("LASTACTIVE_"+receiver)
 			if (receiverlastactive > timestamp):
 				#mark transaction as completed because user has been active after transaction
 				sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s" % (transactionid)
 				_mysqlcursor.execute(sql)
 				_mysqlcon.commit()
-			else if ( round(time.time()) > (timestamp + canceltransactionsinterval) and timestamp > receiverlastactive):
-				#transaction is older than 21 days and pending...mark as cancelled.
+			elif ( round(time.time()) > (timestamp + _intervalpendingcancel) ):
+				#transaction is older than 21 days and pending...try to reverse
 				##check to make sure the reciever has enough
 				receiverbalance = get_user_balance(receiver)
 				if (receiverbalance >= (transactionamount))
@@ -422,18 +461,14 @@ def update_transactions():
 		
 		#Get ready to send out weekly notifications to users who have pending transactions to them that they need to accept.
 		##get TRANSACTIONS_NOTIFIED timestamp from TEST_TABLE_RECENT
-		sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='TRANSACTIONS_NOTIFIED'"
-		_mysqlcursor.execute(sql)
-		results = _mysqlcursor.fetchall()
-		for row in results:
-			lasttransactionsnotifiedtimestamp = row[1]
-			print ("Last Notify Time:", lasttransactionsnotifiedtimestamp)
+			_lastpendingnotifiedtime = get_last_time("lastpendingnotifiedtime")
+			print ("Last Notify Time:", _lastpendingnotifiedtime)
 		
 		
 	
 		
 		##do notifications weekly, not daily.
-		if ((lasttransactionsnotifiedtimestamp+(notifytransactionsinterval)) <= round(time.time())):
+		if ((_lastpendingnotifiedtime + _intervalpendingnotify)) <= round(time.time())):
 			print ("<br><br>Going through each user to see if need to notify")
 	
 			##go through each user and compile list of pending transactions to them.
@@ -442,7 +477,7 @@ def update_transactions():
 			result = _mysqlcursor.fetchall()
 			for row in result:
 				username = row[1]
-				havependingtransaction = 0
+				havependingtransaction = False
 				
 				sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE receiver_username='%s' AND status='pending' ORDER BY timestamp ASC" % (username)
 				_mysqlcursor.execute(sql)
@@ -454,7 +489,7 @@ def update_transactions():
 				if (havependingtransaction):
 				
 					print (username, " has a pending transaction")
-					message = "One or more of your received tips is pending.  If you do not take action, your account will be charged and the tip will be returned to the sender.  To finalize your ownership of the tip, send a message to bitcointip with ACCEPT in the message body.  The oldest pending tip(s) will be returned to the sender in ~%d days." % (round((oldesttransaction+(canceltransactionsinterval) - round(time.time()))/(60*60*24)))
+					message = "One or more of your received tips is pending.  If you do not take action, your account will be charged and the tip will be returned to the sender.  To finalize your ownership of the tip, send a message to bitcointip with ACCEPT in the message body.  The oldest pending tip(s) will be returned to the sender in ~%d days." % (round((oldesttransaction + (_intervalpendingcancel) - round(time.time()))/(60*60*24)))
 					
 					##Add on a list of transactions since $oldesttransaction
 					##add first line of transaction table headers to the response.
@@ -506,22 +541,9 @@ def update_transactions():
 				
 					print ("<br><br>Notification of Pending transactions prepared for $username")
 					
-				
-		
-			if (lasttransactionsnotifiedtimestamp == 0):
-				##if listing doesn't exist, insert
-				sql = "INSERT INTO TEST_TABLE_RECENT (type,timestamp) values('TRANSACTIONS_NOTIFIED', '%d')" % (round(time.time()))
-				_mysqlcursor.execute(sql)
-				_mysqlcon.commit()
-				print ("<br><br>TRANSACTIONS_INSERTED(NOTIFIED) to ")
-				
-			else:
-				
-				##else update
-				sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='TRANSACTIONS_NOTIFIED'" % (round(time.time()))
-				_mysqlcursor.execute(sql)
-				_mysqlcon.commit()
-				print ("<br><br>TRANSACTIONS_UPDATED(NOTIFIED) to ")
+				_lastpendingnotifiedtime = round(time.time())
+			set_last_time("lastpendingnotifiedtime", _lastpendingnotifiedtime)
+			print ("<br><br>TRANSACTIONS_INSERTED(NOTIFIED) to ", _lastpendingnotifiedtime)
 				
 			
 		else:
@@ -531,22 +553,10 @@ def update_transactions():
 	
 	
 	
+		_lastpendingupdatedtime = round(time.time())
+		set_last_time("lastpendingupdatedtime", _lastpendingupdatedtime)
+		print ("<br><br>TRANSACTIONS_UPDATED(UPDATED) to ", round(time.time()))
 	
-	
-		##update TRANSACTIONS_UPDATED timestamp from TEST_TABLE_RECENT to time()
-		if (lasttransactionsupdatedtimestamp == 0):
-			##if listing doesn't exist, insert
-			sql = "INSERT INTO TEST_TABLE_RECENT (type,timestamp) values('TRANSACTIONS_UPDATED', '"%d"')" % (round(time.time()))
-			_mysqlcursor.execute(sql)
-			_mysqlcon.commit()
-			print ("<br><br>TRANSACTIONS_INSERTED(UPDATED) to ")
-			
-		else:
-			##else update
-			sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%d' WHERE type='TRANSACTIONS_UPDATED'" % (round(time.time()))
-			_mysqlcursor.execute(sql)
-			_mysqlcon.commit()
-			print ("<br><br>TRANSACTIONS_UPDATED(UPDATED) to ")
 	else:
 		print ("<br><br> Hasn't beena day yet.")
 	
@@ -736,7 +746,7 @@ def eval_tip(thing):
 		sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp) 	VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % ("", tip_type, comment.permalink, "", commentreplymessage, "", "", 0, tip_timestamp)
 		_mysqlcursor.execute(sql)
 		_mysqlcon.commit()
-		
+		#todo make exchangerate the right name
 		
 	
 	#Send a message to the sender under what conditions?
@@ -992,8 +1002,8 @@ def find_message_command(message): #array
 			print ("Private Key: XXXXX")
 			print ("Transfer: ", transfer)
 			
-			authoroldaddress = getUserAddress(message.author.name)
-			authoroldbalance = getUserBalance(message.author.name)
+			authoroldaddress = get_user_address(message.author.name)
+			authoroldbalance = get_user_balance(message.author.name)
 			
 			print ("authoroldaddress: ", authoroldaddress)
 			print ("authoroldbalance: ", authoroldbalance)
@@ -1054,7 +1064,7 @@ def find_message_command(message): #array
 	command_accept = regex_accept.search(message.body)
 	
 	if (command_accept and returnstring==""):
-		update_lastactive(message.author.name)
+		set_time_last("LASTACTIVE_"+message.author.name, round(time.time()))
 		returnstring = "All pending transactions will be accepted.  No currently existing tips to you will be reversed."
 	
 
@@ -1107,16 +1117,27 @@ def find_message_command(message): #array
 #get new messages and go through each one looking for a command, then respond.
 def eval_messages():
 	#get some unread messages.
+	newest_message_evaluated_time = None
+	
 	unread_messages = reddit.user.get_unread(limit=1000)
 	for message in unread_messages:
 		if (!message.was_comment):
-			#ignore self messages and bannedusers messages
-			if ((message.author.name != "bitcointip") and (message.author.name not in bannedusers)): 
+			#ignore self messages and bannedusers messages/comments
+			if ((message.author.name != "bitcointip") and (message.author.name not in _bannedusers)): 
 					#check message for command and reply
 					find_message_command(message)
 					#mark as read
 					message.mark_as_read()
-
+					if (message.created_utc>newest_message_evaluated_time):
+						newest_message_evaluated_time = message.created_utc
+						
+	if (newest_message_evaluated_time):
+		_lastmessageevaluated = newest_message_evaluated_time
+		set_time_last("lastmessageevaluated",_lastmessageevaluated)
+		
+	_lastmessageevaluatedtime = round(time.time())
+	set_time_last("lastmessageevaluatedtime",_lastmessageevaluatedtime)
+	
 
 #find_comment_command
 #find a command in a user comment
@@ -1136,61 +1157,50 @@ def eval_comments():
 	multi_reddits = reddit.get_subreddit(multiredditstring)
 	
 	#go through comments of allowed subreddits but NOT friendsofbitcointip
-	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTCOMMENT'"
-	_mysqlcursor.execute(sql)
-	result = _mysqlcursor.fetchall()
-	for row in result:
-		lastcommentevaluatedtimestamp = row[1]
-	
+	_lastcommentevaluatedtime = get_last_time("lastcommentevaluatedtime")
+	#todo make sure all times are globals so they can be edited
 	first_comment_this_loop = None
 	print ("checking")
 	multi_reddits_comments = multi_reddits.get_comments(limit=1000)
 	for comment in multi_reddits_comments:
-		if not first_comment_this_loop:
+		if (!first_comment_this_loop):
 			first_comment_this_loop = comment.created_utc
-		if comment.created_utc <= lastcommentevaluatedtimestamp:
+		if (comment.created_utc <= _lastcommentevaluated):
 			print ("old comment")
 			break
 		else:
-			if ((comment.author.name not in friendsofbitcointip) and (comment.author.name not in bannedusers)):#exclude friendsofbitcointip and banned users
+			if ((comment.author.name not in _friendsofbitcointip) and (comment.author.name not in _bannedusers)):#exclude friendsofbitcointip and banned users
 				#print ("(",comment.subreddit,")",comment.author,":",comment.body)
 				find_comment_command(comment)
-	lastcommentevaluatedtimestamp = first_comment_this_loop
+	_lastcommentevaluated = first_comment_this_loop
+	_lastcommentevaluatedtime = round(time.time())
 	#write updated lastcommentevaluatedtimestamp to table.
-	sql = "UPDATE TEST_TABLE_RECENT SET timestamp=lastcommentevaluatedtimestamp WHERE type='LASTCOMMENT'"
-	_mysqlcursor.execute(sql)
-	_mysqlcon.commit()
+	set_last_time("lastcommentevaluated", _lastcommentevaluated)
+	set_last_time("lastcommentevaluatedtime", _lastcommentevaluatedtime)
 	
-	#todo, create mysql initialization file and enter first entries.
-	#todo name global variables correctly
-		
+	#todo name global variables correctly	
 	#now go through friendsofbitcointip separately
 	
+	_lastfriendcommentevaluatedtime = get_last_time("lastfriendcommentevaluatedtime")
 	friends_reddit = reddit.get_subreddit("friends")
-	
-	sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='LASTFRIENDCOMMENT'"
-	_mysqlcursor.execute(sql)
-	result = _mysqlcursor.fetchall()
-	for row in result:
-		lastfriendcommentevaluatedtimestamp = row[1]
 	
 	first_comment_this_loop = None
 	print ("checking")
 	friends_reddit_comments = friends_reddit.get_comments(limit=1000)
 	for comment in friends_reddit_comments:
-		if not first_comment_this_loop:
+		if (!first_comment_this_loop):
 			first_comment_this_loop = comment.created_utc
-		if comment.created_utc <= lastfriendcommentevaluatedtimestamp:
+		if (comment.created_utc <= _lastfriendcommentevaluated):
 			print ("old comment reached")
 			break
 		else:
 			#print ("(",comment.subreddit,")",comment.author,":",comment.body)
 			find_comment_command(comment)
-	lastfriendcommentevaluatedtimestamp = first_comment_this_loop
+	_lastfriendcommentevaluated = first_comment_this_loop.created_utc
 	#write updated lastfriendcommentevaluatedtimestamp to table.
-	sql = "UPDATE TEST_TABLE_RECENT SET timestamp=lastfriendcommentevaluatedtimestamp WHERE type='LASTFRIENDCOMMENT'"
-	_mysqlcursor.execute(sql)
-	_mysqlcon.commit()
+	_lastfriendcommentevaluatedtime = round(time.time())
+	set_last_time("_lastfriendcommentevaluatedtime", _lastfriendcommentevaluatedtime)
+	set_last_time("_lastfriendcommentevaluated", _lastfriendcommentevaluated)
 
 
 #submit_messages
@@ -1291,15 +1301,47 @@ _decryptionkey = "??????????"
 _botstatus = "down"
 
 
-#Timings to do things
+#TIMINGS
+
+#LAST TIME THIS WAS DONE (Make default to right now to avoide double evaluations)
+_lastcommentevaluatedtime = round(time.time())
+_lastfriendcommentevaluatedtime = round(time.time())
+_lastmessageevaluatedtime = round(time.time())
+_lastallowedsubredditsfetchedtime = round(time.time())
+_lastfriendsofbitcointipfetchedtime = round(time.time())
+_lastbannedusersfetchedtime = round(time.time())
+_lastexchangeratefetchedtime = round(time.time())
+_lastpendingupdatedtime = round(time.time())
+_lastpendingnotifiedtime = round(time.time())
+
+_lastcommentevaluatedtime = get_last_time("lastcommentevaluatedtime")
+_lastfriendcommentevaluatedtime = get_last_time("lastfriendcommentevaluatedtime")
+_lastmessageevaluatedtime = get_last_time("lastmessageevaluatedtime")
+_lastallowedsubredditsfetchedtime = get_last_time("lastallowedsubredditsfetchedtime")
+_lastfriendsofbitcointipfetchedtime = get_last_time("lastfriendsofbitcointipfetchedtime")
+_lastbannedusersfetchedtime = get_last_time("lastbannedusersfetchedtime")
+_lastexchangeratefetchedtime = get_last_time("lastexchangeratefetchedtime")
+_lastpendingupdatedtime = get_last_time("lastpendingupdatedtime")
+_lastpendingnotifiedtime = get_last_time("lastpendingnotifiedtime")
+
+_lastcommentevaluated = get_last_time("lastcommentevaluated")
+_lastfriendcommentevaluated = get_last_time("lastfriendcommentevaluated")
+_lastmessageevaluated = get_last_time("lastmessageevaluated")
+_lastallowedsubredditsfetched = get_last_time("lastallowedsubredditsfetched")
+_lastfriendsofbitcointipfetched = get_last_time("lastfriendsofbitcointipfetched")
+_lastbannedusersfetched = get_last_time("lastbannedusersfetched")
+_lastexchangeratefetched = get_last_time("lastexchangeratefetched")
+_lastpendingupdated = get_last_time("lastpendingupdated")
+_lastpendingnotified = get_last_time("lastpendingnotified")
+
 #update exchange rate from the charts every 3 hours
-_updateexchangerateinterval = 60*60*3
+_intervalupdateexchangerate = 60*60*3
 #update transactions (pending->completed or pending->cancelled) every 24 hours
-_updatetransactionsinterval = 60*60*24*1
+_intervalpendingupdate = 60*60*24*1
 #update transactions (pending->cancelled) when transactions are 21 days old
-_canceltransactionsinterval = 60*60*24*21
+_intervalpendingcancel = 60*60*24*21
 #notify users that they have a pending transaction for them every 7 days.
-_notifytransactionsinterval = 60*60*24*7
+_intervalpendingnotify = 60*60*24*7
 
 #DECRYPT DETAILS FOR USE:
 _decMYSQLDBhost = decrypt(_decryptionkey, _encMYSQLDBhost)
@@ -1384,8 +1426,3 @@ while(_looping):
 print "Locking Bitcoin Wallet"
 print (bitcoind.walletlock())
 
-#todo: evaluate comments and messages in the order that they were made.
-
-#todo: handle downtime with all the services.  If downtime is detected with bitcoind,mysql,or reddit, pause the service for a bit and try again later.
-
-#todo: if service is paused for too long, send notification by accessing a notification url.
