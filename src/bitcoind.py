@@ -675,9 +675,11 @@ def transact(fromthing, tothing, amount):
 	amountA = round(amountA,8)
 	amountB = round(amountB,8)
 	
-	recipients = { toaddressA:amountA
-                 , toaddressB:amountB
-                 }
+	#if no change, don't use toaddressB or amountB
+	if (amountB==0):
+		recipients = {toaddressA:amountA}
+	else:
+		recipients = {toaddressA:amountA, toaddressB:amountB}
 
 	txid = sendmany(fromaccount, recipients, minconf=0)
 	return txid
