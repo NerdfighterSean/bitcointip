@@ -6,7 +6,7 @@ def my_decorator(f):
 		try:
 			return f(*args, **kwds)
 		except Exception as e:
-			print ("Error: %s" % e.error['message'])
+			print ("Error: ",e)
 			return "error"
 	return wrapper
 	
@@ -652,7 +652,7 @@ Y
 Returns:
 4db570957a740124c224f6035759ab9f484f1d32ce4b73a13ce7a3015c9c4bc8
 '''
-def transact(fromthing, tothing, amount):
+def transact(fromthing, tothing, amount, txfee):
 	
 	#get fromaccount from fromthing
 	if (validateaddress(fromthing)['isvalid'] == True):
@@ -671,7 +671,7 @@ def transact(fromthing, tothing, amount):
 	
 	balance = float(getbalance(fromaccount))
 	amountA = amount
-	amountB = balance -amountA -0.0005
+	amountB = balance -amountA -txfee
 	amountA = round(amountA,8)
 	amountB = round(amountB,8)
 	
@@ -681,7 +681,19 @@ def transact(fromthing, tothing, amount):
 	else:
 		recipients = {toaddressA:amountA, toaddressB:amountB}
 
+	print ("From balance:", balance)
+	
+	print ("Sending Many...")
+	print ("From:", fromaccount)
+	if (amountB==0):
+		print (amountA, "to", toaddressA)
+	else:
+		print (amountA, "to", toaddressA)
+		print (amountB, "to", toaddressB)
+	print ("Fee:", txfee)
+	
 	txid = sendmany(fromaccount, recipients, minconf=0)
+		
 	return txid
 	
 	

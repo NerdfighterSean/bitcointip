@@ -1,11 +1,13 @@
+﻿# -*- coding: utf-8 -*-
 #from decimal import Decimal
 
+import subprocess
 
 #python reddit api wrapper
 import praw
 
 #bitcoindwrapper and custom methods
-#txid = bitcoind.transact(fromthing, tothing, amount)
+#txid = bitcoind.transact(fromthing, tothing, amount, txfee)
 import bitcoind
 
 #jsonrpc
@@ -114,7 +116,35 @@ def refresh_friends():
     set_last_time("lastfriendsofbitcointipfetched", json.dumps(_lastfriendsofbitcointipfetched))
 
 
-        
+#refresh user flair on the bitcointip subreddit
+def refresh_user_flair():
+    
+    sql = "SELECT * FROM TEST_TABLE_USERS WHERE giftamount!=0"
+    _mysqlcursor.execute(sql)
+    results = _mysqlcursor.fetchall()
+
+    bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
+    for row in results:
+        username = row[1]
+        giftamount = float(row[5])
+                    
+        #based on newgiftamount, set flair and make friend if applicable
+        if (giftamount>=2):
+            #bitcoin level
+            _reddit.get_redditor(transaction_from).friend()
+            bitcointipsubreddit.set_flair(username, "Friend of Bitcointip", "bitcoin")
+        elif (giftamount>=1):
+            #gold level
+            bitcointipsubreddit.set_flair(username, "Friend of Bitcointip", "gold")
+        elif (giftamount>=0.5):
+            #silver level
+            bitcointipsubreddit.set_flair(username, "Friend of Bitcointip", "silver")
+        elif (giftamount>=0.25):
+            #bronze level
+            bitcointipsubreddit.set_flair(username, "Friend of Bitcointip", "bronze")
+            
+    refresh_friends()
+
 #manage banned users by banned from bitcointip subreddit
 def refresh_banned_users():
     global _lastbannedusersfetched
@@ -139,7 +169,7 @@ def refresh_exchange_rate():
     global _lastexchangeratefetchedtime
     
     exchangecode = "mtgox"
-    ratetype = "avg"
+    ratetype = "bid" #avg sometimes returns null
 
     #if exchangeratetime is less than updatetime hours ago, do nothing
     if ( ((round(time.time()))<(_lastexchangeratefetchedtime + _intervalupdateexchangerate)) ):
@@ -200,7 +230,7 @@ def get_user_balance(username):
     userbalance = bitcoind.getbalance(username)
     
     if (userbalance != "error"):
-        return float(userbalance)
+        return (float(userbalance))
     else: 
         if (add_user(username) == "error"):
             return "error"  
@@ -289,7 +319,7 @@ def does_transaction_exist(sender, receiver, timestamp):
     
 #create footer for the end of all PMs
 def get_footer(username):
-    footer = "\n\n---\n\n|||\n|:|:|\n| Account Owner: | **%s** |\n| Deposit Address: | **%s** |\n| Address Balance: | **฿%.8f BTC** *(~$%.2f USD)* \n|\n\n[About Bitcointip](http://www.reddit.com/r/bitcointip) (BETA) **(TEST VERSION, DO NOT DEPOSIT!!!)**" % (username, get_user_address(username), get_user_balance(username), round(get_user_balance(username)*_lastexchangeratefetched['USD'],2))
+    footer = "\n\n---\n\n|||\n|:|:|\n| Account Owner: | **%s** |\n| Deposit Address: | **%s** |\n| Address Balance: | **&#3647;%.8f BTC** *(~$%.2f USD)* \n|\n\n[About Bitcointip](http://www.reddit.com/r/bitcointip) (BETA) **(TEST VERSION, DO NOT DEPOSIT!!!)**" % (username, get_user_address(username), get_user_balance(username), round(get_user_balance(username)*_lastexchangeratefetched['USD'],2))
     return footer
     
     
@@ -314,8 +344,16 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
     if (bitcoind.validateaddress(transaction_to)['isvalid'] == False):
         add_user(transaction_to)
 
+    #SEND tips to bitcointip to cold storage.  Don't have the private key on the server.
+    bitcointipcoldstorage = "1K3ZXpqUkntLR4uVUSW8FK3aRrFnSjeGEm"
+    if (transaction_to.lower()=="bitcointip"):
+        transaction_to = bitcointipcoldstorage #replace with cold storage public address.
+
     #submit the transaction to the wallet.
-    txid = bitcoind.transact(transaction_from, transaction_to, transaction_amount)
+    txid = bitcoind.transact(transaction_from, transaction_to, transaction_amount, _txfee)
+
+    if (transaction_to == bitcointipcoldstorage):
+        transaction_to = "bitcointip"
     
     print ("txid: ", txid)
     
@@ -346,8 +384,10 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
             #based on newgiftamount, set flair and make friend if applicable
             if (newgiftamount>=2):
                 #bitcoin level
-                reddit.get_redditor(transaction_from).friend()
+                _reddit.get_redditor(transaction_from).friend()
                 bitcointipsubreddit.set_flair(transaction_from, "Friend of Bitcointip", "bitcoin")
+                #refresh friends list to reflect new addition
+                refresh_friends()
             elif (newgiftamount>=1):
                 #gold level
                 bitcointipsubreddit.set_flair(transaction_from, "Friend of Bitcointip", "gold")
@@ -400,10 +440,11 @@ def update_transactions():
     ##do this once every day
     ##if (transactiontime + 21days)< receiverlastactive, process the reversal of the transaction to the senders new address, and set transactionstatus=reversed.
 
-    if ((_lastpendingupdatedtime + (_intervalpendingupdate)) <= round(time.time())):
+    if (round(time.time()) >= (_lastpendingupdatedtime + (_intervalpendingupdate))):
         ##if the transactions haven't been updated in 1 day, do the update.
         print ("Updating Pending Transactions")
-    
+        
+        #go through each pending transaction and evaluate it.
         sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE status='pending'"
         _mysqlcursor.execute(sql)
         results = _mysqlcursor.fetchall()
@@ -427,9 +468,9 @@ def update_transactions():
                 receiverbalance = get_user_balance(receiver)
                 if (receiverbalance >= (transactionamount)):
                     ##the receiver has enough, just move the coins from the receiveraddress back to the new senderaddress
-                    reversalamount = transactionamount - 0.0005
+                    reversalamount = transactionamount - _txfee
                     
-                    reversalstatus = bitcoind.transact(receiver, sender, reversalamount)
+                    reversalstatus = bitcoind.transact(receiver, sender, reversalamount, _txfee)
                     
                     ##mark the transaction as reversed in the table
                     if(reversalstatus != "error"):
@@ -484,9 +525,9 @@ def update_transactions():
                 if (havependingtransaction):
                 
                     print (username, " has a pending transaction")
-                    message = "One or more of your received tips is pending.  If you do not take action, your account will be charged and the tip will be returned to the sender.  To finalize your ownership of the tip, send a message to bitcointip with ACCEPT in the message body.  The oldest pending tip(s) will be returned to the sender in ~%d days." % (round((oldesttransaction + (_intervalpendingcancel) - round(time.time()))/(60*60*24)))
+                    message = "One or more of your received tips is pending.  If you do not take action, your account will be charged and the tip will be returned to the sender.  To finalize your ownership of the tip, send a message to bitcointip with ACCEPT in the message body.  To return it, send DECLINE.  The oldest pending tip(s) will be returned to the sender in ~%d days." % (round((oldesttransaction + (_intervalpendingcancel) - round(time.time()))/(60*60*24)))
                     
-                    ##Add on a list of transactions since $oldesttransaction
+                    ##Add on a list of transactions since oldesttransaction
                     ##add first line of transaction table headers to the response.
                     transactionhistorymessage = "\n#**%s's Pending Transaction History***\n\nDate | Sender | Receiver | BTC | ~USD | Status |\n|:|:|:|:|:|:|\n" % (username)
                     k = 0
@@ -538,7 +579,7 @@ def update_transactions():
                     
                 _lastpendingnotifiedtime = round(time.time())
             set_last_time("lastpendingnotifiedtime", _lastpendingnotifiedtime)
-            print ("<br><br>TRANSACTIONS_INSERTED(NOTIFIED) to ", _lastpendingnotifiedtime)
+            print ("TRANSACTIONS_INSERTED(NOTIFIED) to ", _lastpendingnotifiedtime)
                 
             
         else:
@@ -559,6 +600,18 @@ def update_transactions():
     
 def eval_tip(thing):
     #evaluates a user tip, does the tip if valid, and then sends comment reply and messages if needed
+    thing.body = thing.body.replace("&amp;","&")
+    #Speed things up by doing these simple checks:
+    #check body for bitcointip command keyword. if no result, return 0
+    regex_keyword_string = "(\\+(bitcointip|bitcoin|tip|btctip|bittip|btc))"
+    regex_keyword = re.compile(regex_keyword_string,re.IGNORECASE)
+    tip_command_keyword = regex_keyword.search(thing.body)
+    if (not tip_command_keyword):
+        return 0
+    #check author's balance.  if 0, return 0
+    add_user(thing.author.name)
+    if (get_user_balance(thing.author.name)<=0):
+        return 0
 
     amount_value = 0
     amount_code = ""
@@ -568,18 +621,7 @@ def eval_tip(thing):
     transaction_to = ""
 
     disallowed_usernames = ["flip", "all"]
-	
-    #See if the message author has a bitcointip account, if not, ignore them.  Must send PM to bot, or receive a tip to get an account.
-    sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (thing.author.name)
-    _mysqlcursor.execute(sql)
-    result = _mysqlcursor.fetchall()
-    userhasaccount = False
-    for row in result:
-        userhasaccount = True
-
-    #ignore user if they don't have an account.
-    if (not userhasaccount):
-        return False
+    
     
     ##List the properties the tip could have
     transaction_from = thing.author.name
@@ -601,16 +643,16 @@ def eval_tip(thing):
     regex_start_string = "(\\+(bitcointip|bitcoin|tip|btctip|bittip|btc))" #start tip 0
     regex_bitcoinaddress_string = regex_start_string+" (@?((1|3)[A-Za-z0-9]{25,35}))\\b" #bitcoin address
     regex_redditusername_string = regex_start_string+" (@?([A-Za-z0-9_-]{3,20}))\\b" #reddit username
-    regex_currencysymbol_string = " ((\$)|B|฿|&amp;#3647;|¥|£|€)"
+    regex_currencysymbol_string = " ((\$)|&#36;|฿|&#3647;|&bitcoin;|¥|&#165;|&yen;|£|&#163;|&pound;|€|&#8364;|&euro;)"
     regex_currencyamount_string = "((\\d{1,3}(\\,\\d{3})*|(\\d+))(((\\.)(((\\d{3}\\,\\d{3}\\,\\d{1,2})|(\\d{3}\\,\\d{1,3}))|(\\d{1,8})))?))"
-    regex_currencycode_string = "((BTC|XBC|bitcoin|mBTC|CBC|MBC|UBC|SBC|millibitcoin|millibit|cBTC|bitcent|centibit|microbitcoin|microbit|µbtc|ubtc|sat|satoshi|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)"
+    regex_currencycode_string = "((BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)"
     regex_all_string = "(\\bALL\\b)" #all keyword
     regex_flip_string = "(\\bFLIP\\b)" #flip keyword
     regex_amount_string = "((\\b("+regex_currencysymbol_string+"? ?("+regex_currencyamount_string+") ?"+regex_currencycode_string+"?)\\b)|"+regex_all_string+"|"+regex_flip_string+")"
     regex_verify_string = "(\\b(NOVERIFY|VERIFY)\\b)" #noverify keyword
     regex_internet_string = "(\\+1 internet(s)?)" #internet keyword
 
-    regex_tip_string = "((\\+(bitcointip|bitcoin|tip|btctip|bittip|btc)( ((@?1[A-Za-z0-9]{25,35})|((@)?([A-Za-z0-9_-]{3,20}))))?( ((((\$)|B|฿|&amp;#3647;|¥|£|€)? ?((\\d{1,3}(\\,\\d{3})*|(\\d+))(((\\.)(((\\d{3}\\,\\d{3}\\,\\d{1,2})|(\\d{3}\\,\\d{1,3}))|(\\d{1,8})))?))( ?(BTC|XBC|bitcoin|mBTC|CBC|MBC|UBC|SBC|millibitcoin|millibit|cBTC|bitcent|centibit|microbitcoin|microbit|µbtc|ubtc|sat|satoshi|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)?)|ALL|FLIP))( (NOVERIFY|VERIFY))?)|(\\+1 internet(s)?))"
+    regex_tip_string = "((\\+(bitcointip|bitcoin|tip|btctip|bittip|btc)( ((@?1[A-Za-z0-9]{25,35})|((@)?([A-Za-z0-9_-]{3,20}))))?( ((((\$)|&#36;|฿|&#3647;|&bitcoin;|¥|&#165;|&yen;|£|&#163;|&pound;|€|&#8364;|&euro;)? ?((\\d{1,3}(\\,\\d{3})*|(\\d+))(((\\.)(((\\d{3}\\,\\d{3}\\,\\d{1,2})|(\\d{3}\\,\\d{1,3}))|(\\d{1,8})))?))( ?(BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)?)|ALL|FLIP))( (NOVERIFY|VERIFY))?)|(\\+1 internet(s)?))"
 
     regex_start = re.compile(regex_start_string,re.IGNORECASE)
     regex_bitcoinaddress = re.compile(regex_bitcoinaddress_string,re.IGNORECASE)
@@ -702,7 +744,7 @@ def eval_tip(thing):
 
     #no reason to give a cancel message yet.
     cancelmessage=""
-    flipresult = ""
+    flipresult = -1
     
     #get transaction_to
     if (tip_command_redditusername):
@@ -723,12 +765,12 @@ def eval_tip(thing):
         parentid = thing.parent_id[3:]
         parentname = parentcomment.name[3:]
         
-        print ("commentlinkid", commentlinkid)
-        print ("commentid",commentid)
-        print ("parentid",parentid)
-        print ("parentname",parentname)
-        print ("parent author:",parentcomment.author.name)
-        print ("other parent author:",parentcomment.comments[0].author.name)
+        #print ("commentlinkid", commentlinkid)
+        #print ("commentid",commentid)
+        #print ("parentid",parentid)
+        #print ("parentname",parentname)
+        #print ("parent author:",parentcomment.author.name)
+        #print ("other parent author:",parentcomment.comments[0].author.name)
         
         if (commentlinkid==parentname):#todo
             parentcomment = parentcomment.comments[0]
@@ -744,13 +786,20 @@ def eval_tip(thing):
     
     #from amount get the currency and do a conversion if necesarry
 
-    amount_symbol_list = ("฿","$","¥","£","€")
+    amount_symbol_list = ("&#3647;","&#36;","&#165;","&#163;","&#8364;")
     amount_code_list = ("XBC","CBC","MBC","UBC","SBC","USD","JPY","GBP","EUR","CAD","AUD")
     standardizing_symbol_dictionary = {
-                                "B":"฿"}
-    
+                                "฿":"&#3647;",
+                                "¥":"&#165;",
+                                "£":"&#163;",
+                                "€":"&#8364;",
+                                "$":"&#36;",
+                                "&bitcoin;":"&#3647;",
+                                "&yen;":"&#165;",
+                                "&pound;":"&#163;",
+                                "&euro;":"&#8364;"}
+                                
     standardizing_code_dictionary =  {
-                                "&amp;#3647;":"฿",
                                 "millibitcoin":"MBC",
                                 "microbitcoin":"UBC",
                                 "bitcoin":"XBC",
@@ -759,7 +808,8 @@ def eval_tip(thing):
                                 "microbit":"UBC",
                                 "satoshi":"SBC",
                                 "mbtc":"MBC",
-                                "µbtc":"UBC",
+                                "&#181;btc":"UBC",
+                                "&micro;btc":"UBC",
                                 "ubtc":"UBC",
                                 "cbtc":"CBC",
                                 "american":"USD",
@@ -780,17 +830,17 @@ def eval_tip(thing):
                                 "sat":"SBC",
                                 }
 
-    symbol_code_dictionary = {"XBC":"฿",
+    symbol_code_dictionary = {"XBC":"&#3647;",
                               "CBC":"",
                               "MBC":"",
                               "UBC":"",
                               "SBC":"",
-                              "JPY":"¥",
-                              "GBP":"£",
-                              "EUR":"€",
-                              "CAD":"$",
-                              "AUD":"$",
-                              "USD":"$"}
+                              "JPY":"&#165;",
+                              "GBP":"&#163;",
+                              "EUR":"&#8364;",
+                              "CAD":"&#36;",
+                              "AUD":"&#36;",
+                              "USD":"&#36;"}
     
     #get transaction_amount
     if (tip_command_amount or tip_command_internet):
@@ -799,17 +849,11 @@ def eval_tip(thing):
             tip_command_amount = tip_command_amount.lower()
             tip_command_amount = tip_command_amount.replace(" ","")
             tip_command_amount = tip_command_amount.strip("s")
-            longestsymbol=0
-            for key in standardizing_symbol_dictionary:
-                if (key in tip_command_amount):
-                    if (longestsymbol<key.__len__()):
-                        longestsymbol = key.__len__()
 
+            #not needed thanks to the encoding.decoding handled before the function gets the text.
             for key in standardizing_symbol_dictionary:
                 if (key in tip_command_amount):
-                    if (key.__len__() == longestsymbol):
-                        tip_command_amount = tip_command_amount[0].replace(key, standardizing_symbol_dictionary[key]) +tip_command_amount[1:]
-                        break
+                    tip_command_amount = tip_command_amount.replace(key, standardizing_symbol_dictionary[key])
 
             longestcode = 0
             for key in standardizing_code_dictionary:
@@ -827,10 +871,9 @@ def eval_tip(thing):
         if (tip_command_amount!="all" and tip_command_amount!="flip" and (not tip_command_internet)):
             #reduce duplicates
 
-            if (tip_command_amount[0] in amount_symbol_list):                                             
-                amount_symbol = tip_command_amount[0]
-            else:
-                amount_symbol = ""
+            for key in amount_symbol_list:
+                if (key in tip_command_amount):
+                    amount_symbol=key
 
             if (tip_command_amount[-3:] in amount_code_list):
                 amount_code = tip_command_amount[-3:]
@@ -848,7 +891,7 @@ def eval_tip(thing):
 
             if (bool(amount_code)==False and bool(amount_symbol)==True):
                 #make code from symbol
-                if (amount_symbol=="$"):
+                if (amount_symbol=="&#36;"):
                     amount_code="USD"
                 else:
                     for code in symbol_code_dictionary:
@@ -878,18 +921,18 @@ def eval_tip(thing):
             print ("Value:",amount_value)
             print ("Symbol:",amount_symbol)
             print ("Code:",amount_code)
-            print (_lastexchangeratefetched)
-            print (_lastexchangeratefetched[amount_code])
-            #todo convert amount_value and amount_code to a bitcoin amount
+            #print (_lastexchangeratefetched)
+            #print (_lastexchangeratefetched[amount_code])
+            #convert amount_value and amount_code to a bitcoin amount
             transaction_amount = (amount_value/(_lastexchangeratefetched[amount_code]))
             transaction_amount = round(transaction_amount, 8)
             
         elif (tip_command_all):
                 senderbalance = get_user_balance(transaction_from)
-                transaction_amount = (senderbalance - 0.0005)
+                transaction_amount = (senderbalance - _txfee)
                 transaction_amount = round(transaction_amount, 8)
                 amount_value=transaction_amount
-                amount_symbol="฿"
+                amount_symbol="&#3647;"
                 amount_code="XBC"
                 
         elif (tip_command_flip):
@@ -910,7 +953,7 @@ def eval_tip(thing):
                 cancelmessage = "You do not have a bitcent (and fee) to flip."
                 transaction_amount = 0
             amount_value=transaction_amount
-            amount_symbol="฿"
+            amount_symbol="&#3647;"
             amount_code="XBC"
             
         elif (tip_command_internet):
@@ -918,25 +961,25 @@ def eval_tip(thing):
                 if ("s" in tip_command_internet.lower()):
                     transaction_amount = 0.02
                     if (get_user_balance(transaction_from)<0.0205):
-                        cancelmessage = "You do not have 2 internets (฿0.02) to give." #not sent to user
+                        cancelmessage = "You do not have 2 internets (&#3647;0.02) to give." #not sent to user
                 else:
                     transaction_amount = 0.01
                     if (get_user_balance(transaction_from)<0.0105):
-                        cancelmessage = "You do not have an internet (฿0.01) to give." #not sent to user
+                        cancelmessage = "You do not have an internet (&#3647;0.01) to give." #not sent to user
             else:
-                #error: not donated enough
-                cancelmessage = "You have not donated enough to use the '+1 internet' command."
+                #error: not donated enough 
+                cancelmessage = "You have not donated enough to use the +1 internet command." #not sent to user
                 transaction_amount=0
                 
             amount_value=transaction_amount
-            amount_symbol="฿"
+            amount_symbol="&#3647;"
             amount_code="XBC"
         
     ##check conditions to cancel the transaction and return error message
     if (transaction_amount<=0 and (not tip_command_flip) and cancelmessage==""):
         cancelmessage = "You cannot send an amount of 0 or less."
-    elif (transaction_amount+0.0005 > get_user_balance(transaction_from) and cancelmessage==""):
-        cancelmessage = "You do not have enough in your account.  You have %.8f BTC, but need %.8f BTC (do not forget about the 0.0005 BTC fee per transaction)." % (get_user_balance(transaction_from), transaction_amount+0.0005)
+    elif (transaction_amount+_txfee > get_user_balance(transaction_from) and cancelmessage==""):
+        cancelmessage = "You do not have enough in your account.  You have &#3647;%.8f BTC, but need &#3647;%.8f BTC (do not forget about the &#3647;%f BTC fee per transaction)." % (get_user_balance(transaction_from), transaction_amount+_txfee, _txfee)
     elif ( tip_type=="comment" and (tip_subreddit not in _lastallowedsubredditsfetched) and (get_user_gift_amount(transaction_from)<2) and cancelmessage==""):
         cancelmessage = "The %s subreddit is not currently supported for you." % (tip_subreddit)
     elif ((transaction_from.lower() in _lastbannedusersfetched) and transaction_from!="" and cancelmessage==""):
@@ -947,13 +990,16 @@ def eval_tip(thing):
         cancelmessage="You cannot send any amount to yourself."
     elif (transaction_to == "" and cancelmessage==""):
         cancelmessage="You must specify a recipient username or bitcoin address."
-#todo, don't do tx if flipresult=0
-    if (cancelmessage):
+        
+    #todo, don't do tx if flipresult=0
+    if (cancelmessage or (tip_command_flip and flipresult==0)):
         txid="error"
     else:
         if (tip_command_redditusername):
             add_user(transaction_from)
         txid = do_transaction(transaction_from, transaction_to, transaction_amount, tip_type, tip_id, tip_subreddit, tip_timestamp)
+        if (txid == "error"):
+            cancelmessage = "There was a problem with the transaction that probably was not your doing."
     
     #based on the variables, form messages.
     
@@ -971,8 +1017,8 @@ def eval_tip(thing):
     altcurrency_amount = round(transaction_amount * (_lastexchangeratefetched[altcurrency_code]),2)
 
     #link to the transaction is hidden in the bitcoin symbol
-    verifiedmessage = "**Verified**: [%s ---> ](http://reddit.com/r/bitcointip)[฿](https://blockchain.info/tx/%s)[%.8f BTC (%s%.2f %s) ---> %s](http://reddit.com/r/bitcointip)" % (transaction_from, txid, transaction_amount, altcurrency_symbol, altcurrency_amount,altcurrency_code, transaction_to)
-    rejectedmessage = "Rejected: ~~[%s ---> ](http://reddit.com/r/bitcointip)[฿](https://blockchain.info/tx/%s)[%.8f BTC (%s%.2f %s) ---> %s](http://reddit.com/r/bitcointip)~~" % (transaction_from, txid, transaction_amount, altcurrency_symbol, altcurrency_amount,altcurrency_code, transaction_to)
+    verifiedmessage = "[[**✔**](https://blockchain.info/tx/%s)] **Verified**:[ %s ---> **&#3647;%.8f BTC** *(%s%.2f %s)* ---> %s ](http://reddit.com/r/bitcointip)" % (txid, transaction_from, transaction_amount, altcurrency_symbol, altcurrency_amount,altcurrency_code, transaction_to)
+    rejectedmessage = "[**X**] **Rejected**: [ ~~%s ---> **&#3647;%.8f BTC** *(%s%.2f %s)* ---> %s~~ ](http://reddit.com/r/bitcointip)" % (transaction_from, transaction_amount, altcurrency_symbol, altcurrency_amount,altcurrency_code, transaction_to)
 
     #create special response for flip
     if (tip_command_flip and cancelmessage==""):
@@ -980,21 +1026,28 @@ def eval_tip(thing):
             flipmessage = "Bit landed **1** up. %s wins 1 bitcent.\n\n" % (transaction_to)
         if (flipresult==0):
             flipmessage = "Bit landed **0** up. %s wins nothing.\n\n" % (transaction_to)
+            rejectedmessage=""
     else:
         flipmessage = ""
+
 
     commentreplymessage=""
     #Reply to a comment under what conditions?
     #reply to a flip only if cancelmessage!="" 
     #reply to a +1 internet only if it is a success
-    if (tip_type == "comment" and tip_command_verify.lower()!="noverify" and ((tip_subreddit in _lastallowedsubredditsfetched) or (get_user_gift_amount(transaction_from)>=2)) and (not (tip_command_internet and cancelmessage)) and (not (tip_command_flip and cancelmessage)) ):
+    if ((tip_type == "comment") and ((tip_subreddit in _lastallowedsubredditsfetched) or (get_user_gift_amount(transaction_from)>=2)) and (tip_command_verify.lower()!="noverify")):
         #Reply to the comment
+        if (flipresult!=-1):
+            commentreplymessage += flipmessage
+            
         if (txid!="error"):
-            commentreplymessage = flipmessage
-            if (flipresult==1 or (not tip_command_flip)):
-                commentreplymessage += verifiedmessage
+            commentreplymessage += verifiedmessage
         else:
             commentreplymessage += rejectedmessage
+
+    #if failed +1 internet, don't send an annoying message.
+    if (tip_command_internet and cancelmessage):
+        commentreplymessage = ""
         
     if (commentreplymessage):
         #if comment reply is prepared, send it
@@ -1003,21 +1056,26 @@ def eval_tip(thing):
         _mysqlcursor.execute(sql)
         _mysqlcon.commit()
         
-    
+    #TODOif 
     #Send a message to the sender under what conditions?
     #if flipping, only send a pm to sender if they don't have enough for a flip.
     #if +1internet, do not send a pm to sender under any circumstance. (nonusers may use this without intent to tip, don't bother them)
     pmsendermessage=""
-    if ((tip_type == "message" or txid == "error" or cancelmessage) and (not (tip_command_internet and cancelmessage))):
+    if (cancelmessage!="" or tip_type=="message"):
         #PM the Sender
+        if (flipresult!=-1 and txid!="error"):
+            pmsendermessage += flipmessage
         if (txid!="error"):
             pmsendersubject = "Successful Bitcointip Notice"
-            pmsendermessage = flipmessage + verifiedmessage
+            pmsendermessage += verifiedmessage
         else:
             pmsendersubject = "Failed Bitcointip Notice"
-            pmsendermessage = flipmessage + cancelmessage+"\n\n"+ rejectedmessage
+            pmsendermessage += cancelmessage+"\n\n"+ rejectedmessage
         #add footer to PM
         pmsendermessage += get_footer(transaction_from)
+
+    if (tip_command_internet and cancelmessage):
+        pmsendermessage = ""
     
     if (pmsendermessage):
         #if pm to sender is prepared, send it
@@ -1029,11 +1087,13 @@ def eval_tip(thing):
     pmreceivermessage=""
     #Send a message to the receiver under what conditions?
     #only PM receiver if tip_type is a message and success
-    if (tip_type == "message" and txid!="error" and tip_redditusername):
+    if (tip_type == "message" and txid!="error" and tip_command_redditusername):
         #PM the Receiver
-        pmreceiversubject = "Successful Bitcointip Notice"
-        pmreceivermessage = flipmessage +verifiedmessage 
-        
+        if (flipresult!=-1 and txid!="error"):
+            pmreceivermessage += flipmessage
+            
+        pmreceiversubject = "Bitcointip Notice"
+        pmreceivermessage += verifiedmessage 
         #add footer to PM
         pmreceivermessage += get_footer(transaction_to)
         
@@ -1043,6 +1103,18 @@ def eval_tip(thing):
         sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp)  VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f')" % ("", "message", transaction_to, pmreceiversubject, pmreceivermessage, "", "", "0", tip_timestamp)
         _mysqlcursor.execute(sql)
         _mysqlcon.commit()
+
+
+    #if the tip was a comment and replied to, mark as success or fail. 
+    if (commentreplymessage):
+        if (txid!="error"):
+            #upvote it
+            thing.upvote()
+            print ("Comment Upvoted")
+        else:
+            #downvote it   
+            thing.downvote()
+            print ("Comment Downvoted")
             
     if (tip_command):
         #tip found and done
@@ -1066,7 +1138,30 @@ def find_message_command(message): #array
     add_user(message.author.name)
     
     #Start going through the message for commands. Only the first found will be evaluated
+
     
+    
+    
+    
+    ##CHECK FOR MESSAGE TIP (take care of sending all messages here, return empty string, telling eval_messages to not send any more messages. Do this first to avoid redditors with commands in their username.
+    if (returnstring==""):
+        if (eval_tip(message)):
+        #if returns 1, then a tip was found.
+        #only do one command per message, so stop looking for more commands
+        #messages sent in eval_tip.
+            return ""
+            
+            
+            
+            
+
+    #"SIGNUP"
+    #special first message for those who want one.
+    regex_signupmessage = re.compile("(SIGN ?UP)",re.IGNORECASE)
+    command_signupmessage = regex_signupmessage.search(message.body)
+    
+    if (command_signupmessage and returnstring==""):
+        returnstring = "Welcome to the bitcointip bot. This is the signup message."
     
     #"REDEEM KARMA: 1thisisabitcoinaddresshereyes"
     #if bitcoinaddress is valid, 
@@ -1080,8 +1175,8 @@ def find_message_command(message): #array
         
         #karma limits on which redditors can get bitcoins for their karma
         minlinkkarma = 0
-        mincommentkarma = 200
-        mintotalkarma = 200
+        mincommentkarma = 500
+        mintotalkarma = 500
 
         #baseline amount of bitcoin to give each redditor (enough to cover some mining fees)
         defaultbitcoinamount = 0.00200000
@@ -1128,13 +1223,13 @@ def find_message_command(message): #array
                         bitcoinamount = 0.01
                     
                     #check to make sure the faucet has enough.
-                    if ( faucetbalance > (bitcoinamount + 0.0005) ):
+                    if ( faucetbalance > (bitcoinamount + 0.01) ):
                         
                         #The reddit bitcoin faucet has enough
                         print ("the reddit bitcoin faucet has: %.8f BTC", faucetbalance)
 
                         #go ahead and send the bitcoins to the user
-                        txid = bitcoind.transact("bitcointipfaucetdepositaddress", karmabitcoinaddress, bitcoinamount)
+                        txid = bitcoind.transact("bitcointipfaucetdepositaddress", karmabitcoinaddress, bitcoinamount, _txfee)
 
                         if (txid != "error"):
                             print ("no error, transaction done, bitcoins en route to %s." % (karmabitcoinaddress) )
@@ -1184,12 +1279,13 @@ def find_message_command(message): #array
         #add first line of transaction table headers to the response.
         transactionhistorymessage = "\n#**%s Transaction History***\n\nDate | Sender | Receiver | BTC | ~USD | Status |\n|:|:|:|:|:|:|\n" % (message.author.name)
         k = 0
+        historyrows = []
 
         sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE sender_username='%s' OR receiver_username='%s' ORDER BY timestamp DESC" % (message.author.name, message.author.name)
         _mysqlcursor.execute(sql)
         result = _mysqlcursor.fetchall()
         for row in result:
-            if (k<11):
+            if (k<10):
                 sender = row[1]
                 receiver_username = row[3]
                 receiver_address = row[4]
@@ -1217,17 +1313,22 @@ def find_message_command(message): #array
                     senderbold=""
                     
                 ##add new transaction row to table being given to user
-                newrow = "| %s | %s%s%s | %s%s%s | %s฿%.8f%s | %s$%.2f%s | %s |\n" % (date, senderbold, sender, senderbold, receiverbold, receiver, receiverbold, amountsign, amount_BTC, amountsign, amountsign, amount_USD, amountsign, status)
-                transactionhistorymessage = transactionhistorymessage + newrow
+                historyrows.append("| %s | %s%s%s | %s%s%s | %s&#3647;%.8f%s | %s$%.2f%s | %s |\n" % (date, senderbold, sender, senderbold, receiverbold, receiver, receiverbold, amountsign, amount_BTC, amountsign, amountsign, amount_USD, amountsign, status))
 
-            elif (k == 11):
-                ##if there are more than 30 transactions, tell them there are some left out after the table.
-                transactionhistorymessage = transactionhistorymessage + "**Transaction History Truncated.*\n\n"
+                k+=1 
+            elif (k == 10):
                 break
-            k+=1
+            
 
             ##end
-        
+            
+        for row in historyrows:
+            transactionhistorymessage += row
+            
+        if (k>=11):
+            ##if there are more than 10 transactions, tell them there are some left out after the table.
+            transactionhistorymessage = transactionhistorymessage + "*Transaction History Truncated.*\n\n"
+            
         #if no transactions, say so
         if (k == 0):
             transactionhistorymessage = "\n\n**You have no transactions.**\n\n"
@@ -1246,7 +1347,7 @@ def find_message_command(message): #array
     
     if (command_giftamount and returnstring==""):
         giftamount = get_user_gift_amount(message.author.name)
-        returnstring = "You have given /u/bitcointip ฿%.8f so far." % (giftamount)
+        returnstring = "You have given /u/bitcointip &#3647;%.8f so far." % (giftamount)
         if (giftamount>=2):
             returnstring = returnstring + "\n\n**Thank you for your support!  Contributors like you make this possible.**"
         elif (giftamount>=1):
@@ -1259,8 +1360,24 @@ def find_message_command(message): #array
             returnstring = returnstring + "\n\nThanks."
 
 
+    ###"Get a user balance" #Admin only
+    ###getbalance:username"
+    regex_admingetbalance = re.compile("(getbalance:(.*))",re.IGNORECASE)
+    command_admingetbalance = regex_admingetbalance.search(message.body)
+    
+    if (command_admingetbalance and returnstring==""):
+        if (message.author.name.lower()=="nerdfightersean"):
+            if (command_admingetbalance.groups()[1]):
+                userbalance = get_user_balance(command_admingetbalance.groups()[1])
+                returnstring = "%s balance: %f" % (command_admingetbalance.groups()[1], userbalance)
+            else:
+                returnstring = "error"
+        else:
+            returnstring = "error"
+    
 
-#Actual export private key
+
+    #Actual export private key
     ###"Export private key"
     ###TRANSFER BALANCE: Y/N"
     regex_exportkey = re.compile("(YES EXPORT PRIVATE KEY)",re.IGNORECASE)
@@ -1271,7 +1388,20 @@ def find_message_command(message): #array
             print ("Dumping Private key for %s" % (message.author.name))
             privatekey = bitcoind.dumpprivkey(get_user_address(message.author.name))
             if (privatekey!="error"):
-                returnstring = "Your private key is: %s. Keep it secret. Keep it safe." % (privatekey)
+                obfuscatedprivatekey = privatekey
+                obfuscation = {"1":"(A)",
+                            "2":"(B)",
+                            "3":"(C)",
+                            "4":"(D)",
+                            "5":"(E)",
+                            "6":"(F)",
+                            "7":"(G)",
+                            "8":"(H)",
+                            "9":"(I)"
+                            }
+                for key in obfuscation:
+                    obfuscatedprivatekey = obfuscatedprivatekey.replace(key, obfuscation[key])
+                returnstring = "Your obfuscated (not encrypted) private key is: %s.  To deobfuscate it, replace all the letters in parenthesis with the digit of its position in the English Alphabet.\n\n**Keep it secret. Keep it safe.**" % (obfuscatedprivatekey)
             else:
                 returnstring = "There was some kind of error exporting your private key."
         else:
@@ -1289,7 +1419,7 @@ def find_message_command(message): #array
     if (command_tryexportkey and returnstring==""):
         if (get_user_gift_amount(message.author.name) >= 0.5):
             print ("Asking if dump Private key for %s" % (message.author.name))
-            returnstring = "Are you sure you want to export your private key?  Anyone (or thing) who knows your private key, can control the bitcoins associated with that bitcoin address.  Make sure you take adequate security considerations.\n\nIf you are sure, reply with YES EXPORT PRIVATE KEY."
+            returnstring = "Are you sure you want to export your private key?  Anyone (or thing) who knows your private key, can control the bitcoins associated with that bitcoin address.  Make sure you take adequate security considerations.\n\nIf you are sure, reply with YES EXPORT PRIVATE KEY.\n\n(Note: the address will not be in wallet import format yet, so only do this if you know what you are doing.)"
         else:
             returnstring = "You have not donated enough to use that command"
 
@@ -1350,8 +1480,8 @@ def find_message_command(message): #array
                 
                     returnstring = "Replacement successful. Your new bitcoin address is: %s.\n\nYour old bitcoin address was: ~~%s~~." % (authornewaddress, authoroldaddress)
                 if (transfer.lower() == "y" and authoroldbalance != 0):
-                    moveamount = authoroldbalance - 0.0005
-                    movedstatus = bitcoind.transact(authoroldaddress, authornewaddress, moveamount) 
+                    moveamount = authoroldbalance - _txfee
+                    movedstatus = bitcoind.transact(authoroldaddress, authornewaddress, moveamount, _txfee) 
                     print ("movedstatus: ", movedstatus)
                     if (movedstatus != "error"):
                         returnstring += "\n\nYour old balance of %.8f is being moved to your new address." % (moveamount)
@@ -1371,6 +1501,7 @@ def find_message_command(message): #array
             ##not enough gift.
             returnstring = "You have not donated enough to use that command."   
     
+    
     ##ACCEPT PENDING TRANSACTIONS
     ##"ACCEPT"
     regex_accept = re.compile("(ACCEPT)",re.IGNORECASE)
@@ -1378,18 +1509,67 @@ def find_message_command(message): #array
     
     if (command_accept and returnstring==""):
         set_last_time("LASTACTIVE_"+message.author.name, round(time.time()))
-        returnstring = "All pending transactions will be accepted.  No currently existing tips to you will be reversed."
-    
-
-    
-    ##CHECK FOR MESSAGE TIP (take care of sending all messages here, return empty string, telling eval_messages to not send any more messages.
-    if (returnstring==""):
-        if (eval_tip(message)):
-	    #if returns 1, then a tip was found.
-	    #only do one command per message, so stop looking for more commands
-	    #messages sent in eval_tip.
-            return ""
         
+        sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE receiver_username='%s' AND status='pending'" % (message.author.name)
+        _mysqlcursor.execute(sql)
+        _mysqlcon.commit()
+        
+        returnstring = "Pending tips to you have been accepted."
+        
+        
+        
+        
+        
+    ##DECLINE PENDING TRANSACTIONS
+    ##"DECLINE"
+    regex_decline = re.compile("(DECLINE)",re.IGNORECASE)
+    command_decline = regex_decline.search(message.body)
+    
+    if (command_decline and returnstring==""):
+        set_last_time("LASTACTIVE_"+message.author.name, round(time.time()))
+        
+        #first in, first returned
+        sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE status='pending' AND receiver_username='%s' ORDER BY timestamp ASC" % (message.author.name)
+        _mysqlcursor.execute(sql)
+        results = _mysqlcursor.fetchall()
+        for row in results:
+            transactionid = row[0]
+            receiver = row[3]
+            sender = row[1]
+            timestamp = float(row[10])
+            transactionamount = float(row[5])
+            
+
+            #try to reverse
+            ##check to make sure the reciever has enough
+            receiverbalance = get_user_balance(receiver)
+            if (receiverbalance >= (transactionamount)):
+                ##the receiver has enough, just move the coins from the receiveraddress back to the new senderaddress
+                reversalamount = transactionamount - _txfee
+                    
+                reversalstatus = bitcoind.transact(receiver, sender, reversalamount, _txfee)
+                    
+                ##mark the transaction as reversed in the table
+                if(reversalstatus != "error"):
+                    sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='reversed' WHERE transaction_id='%s'" % (transactionid)
+                    _mysqlcursor.execute(sql)
+                    _mysqlcon.commit()
+                    print ("Transaction reversed: ", transactionid)
+                else:
+                    ##the user doesn't have enough to reverse the transaction, they must have spent it in another way.
+                    sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
+                    _mysqlcursor.execute(sql)
+                    _mysqlcon.commit()
+                    print ("Transaction completed (user already spent funds):", transactionid)
+            else:
+                ## the receiver doesn't have enough.  They must have already spent it
+                ##mark as completed instead of reversed.
+                sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
+                _mysqlcursor.execute(sql)
+                _mysqlcon.commit()
+                print ("Transaction completed (user already spent funds):", transactionid)
+    
+        returnstring = "Pending tips to you have been returned to sender if possible."
         
         
     ##HELP
@@ -1421,7 +1601,7 @@ def find_message_command(message): #array
         _mysqlcon.commit()
         print("To:",message.author.name)
         print (returnsubject)
-        print (returnstring)
+        #print (returnstring)
     
     
 
@@ -1438,11 +1618,12 @@ def eval_messages():
     #get some unread messages.
     newest_message_evaluated_time = 0
     
-    unread_messages = _reddit.user.get_unread(limit=100)
+    unread_messages = _reddit.user.get_unread(limit=1000)
     for message in unread_messages:
         if (not message.was_comment):
             #ignore self messages and bannedusers messages/comments
             if ((message.author.name.lower() != "bitcointip") and (message.author.name.lower() not in _lastbannedusersfetched)): 
+                message.body = message.body.encode("ascii", "xmlcharrefreplace").decode("ascii", "xmlcharrefreplace")
                 print ("Message %s: %s" % (message.author.name, message.subject))
                 #check message for command and reply
                 find_message_command(message)
@@ -1498,7 +1679,7 @@ def eval_comments():
     
     first_comment_this_loop = None
     print ("checking comments")
-    multi_reddits_comments = multi_reddits.get_comments(limit=100)
+    multi_reddits_comments = multi_reddits.get_comments(limit=1000)
     for comment in multi_reddits_comments:
         if (not first_comment_this_loop):
             first_comment_this_loop = round(comment.created_utc)
@@ -1507,7 +1688,8 @@ def eval_comments():
             break
         else:
             if ((comment.author.name.lower() not in _lastfriendsofbitcointipfetched) and (comment.author.name.lower() not in _lastbannedusersfetched) and comment.author.name.lower()!="bitcointip"):#exclude friendsofbitcointip and banned users
-                print ("(",comment.subreddit,")",comment.author.name,":",comment.body)
+                comment.body = comment.body.encode("ascii", "xmlcharrefreplace").decode("ascii", "xmlcharrefreplace")
+                print (("("+comment.subreddit.display_name+")"+comment.author.name+":"+comment.body))
                 find_comment_command(comment)
     _lastcommentevaluated = first_comment_this_loop
     _lastcommentevaluatedtime = round(time.time())
@@ -1523,7 +1705,7 @@ def eval_comments():
     
     first_comment_this_loop = None
     print ("checking friend comments")
-    friends_reddit_comments = friends_reddit.get_comments(limit=100)
+    friends_reddit_comments = friends_reddit.get_comments(limit=1000)
     for comment in friends_reddit_comments:
         if (not first_comment_this_loop):
             first_comment_this_loop = round(comment.created_utc)
@@ -1531,7 +1713,8 @@ def eval_comments():
             print ("old friend comment reached")
             break
         else:
-            print ("(",comment.subreddit,")",comment.author.name,":",comment.body)
+            comment.body = comment.body.encode("ascii", "xmlcharrefreplace").decode("ascii", "xmlcharrefreplace")
+            print (("("+comment.subreddit.display_name+")"+comment.author.name+":"+comment.body))
             find_comment_command(comment)
     _lastfriendcommentevaluated = first_comment_this_loop
     #write updated lastfriendcommentevaluatedtimestamp to table.
@@ -1610,8 +1793,51 @@ def submit_messages():
                     
 
 
+def exitpeacefully(e):
+    print ("Exiting Peacefully")
+    
+    #LOCK BITCOIND WALLET AT PROGRAM END
+    print ("Locking Bitcoin Wallet")
+    print (bitcoind.walletlock())
 
+    #The bot has had a problem and quit. Email the admin for help:
+    errorstring = ("Error, the bot has stopped running!\n\n\nException:",str(e))
+    print ("Emailing Admin")
+    #email admin alert
+    emailcommand = 'echo "The bot has stopped.\n\n Error:\n\n" | mutt -s "ALERT: BOT HAS STOPPED" -- root email'
+    print (emailcommand)
+    result = subprocess.call(emailcommand, shell=True)
+    
+    #then back up the wallet:
+    datetime = time.strftime("%a_%Y-%b-%d_%H:%M:%S", time.gmtime())
+    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet_%s.dat" % (datetime))
+    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet.dat" % (datetime))
+    print ("Backed up wallet")
 
+    #then backup the mysql database:
+    backupmysqlcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db.sql"
+    backupmysqldatedcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db_`date +%a_%Y-%b-%d_%H:%M:%S`.sql"
+    result = subprocess.call(backupmysqlcommand, shell=True)
+    result = subprocess.call(backupmysqldatedcommand, shell=True)
+    print ("Backed up mysql db")
+    exit(0)
+
+    
+def createbackups():
+    #back up the wallet:
+    datetime = time.strftime("%a_%Y-%b-%d_%H:%M:%S", time.gmtime())
+    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet_%s.dat" % (datetime))
+    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet.dat")
+    print ("Backed up wallet")
+
+    #then backup the mysql database:
+    backupmysqlcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db.sql"
+    backupmysqldatedcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db_`date +%a_%Y-%b-%d_%H:%M:%S`.sql"
+    result = subprocess.call(backupmysqlcommand, shell=True)
+    result = subprocess.call(backupmysqldatedcommand, shell=True)
+    print ("Backed up mysql db")
+    _lastbackuptime = round(time.time())
+    set_last_time("lastbackuptime", _lastbackuptime)
 
 
 
@@ -1623,7 +1849,7 @@ _MYSQLhost = "???"
 _MYSQLlogin = "???"
 _MYSQLpass = "???"
 _MYSQLdbname = "???"
-_MYSQLport = ???
+_MYSQLport = "???"
 
 _BITCOINDlogin = "???"
 _BITCOINDpass = "???"
@@ -1633,7 +1859,7 @@ _BITCOINDsecondpass = "???"
 
 _REDDITbotusername = "???"
 _REDDITbotpassword = "???"
-_REDDITuseragent = "bitcointip bot by /u/nerdfightersean https://github.com/NerdfighterSean/bitcointip"
+_REDDITuseragent = "???"
 
 # BOTSTATUS (DOWN/UP)
 _botstatus = "up"
@@ -1650,19 +1876,34 @@ _intervalpendingnotify = 60*60*24*7
 
 
 # CONNECT TO MYSQL DATABASE
-_mysqlcon = pymysql.connect(host=_MYSQLhost, port=_MYSQLport, user=_MYSQLlogin, passwd=_MYSQLpass, db=_MYSQLdbname, use_unicode=True, charset='utf8')
-_mysqlcursor = _mysqlcon.cursor()
-print ("Connected to MYSQL.")
+try:
+    _mysqlcon = pymysql.connect(host=_MYSQLhost, port=_MYSQLport, user=_MYSQLlogin, passwd=_MYSQLpass, db=_MYSQLdbname, use_unicode=True, charset='utf8')
+    _mysqlcursor = _mysqlcon.cursor()
+    print ("Connected to MYSQL.")
+except Exception as e:
+    exitpeacefully(e)
+
+
 
 # CONNECT TO BITCOIND SERVER
-_jsonRPCClientString = "http://"+_BITCOINDlogin+":"+_BITCOINDpass+"@"+_BITCOINDip+":"+_BITCOINDport+"/"
-bitcoind.access = ServiceProxy(_jsonRPCClientString)
-print("Connected to BITCOIND.")
+try:
+    _jsonRPCClientString = "http://"+_BITCOINDlogin+":"+_BITCOINDpass+"@"+_BITCOINDip+":"+_BITCOINDport+"/"
+    bitcoind.access = ServiceProxy(_jsonRPCClientString)
+    print("Connected to BITCOIND.")
+    if (bitcoind.getinfo()=="error"):
+        exitpeacefully()
+except Exception as e:
+    exitpeacefully(e)
 
+
+    
 # CONNECT TO REDDIT.COM
-_reddit = praw.Reddit(user_agent = _REDDITuseragent)
-_reddit.login(_REDDITbotusername, _REDDITbotpassword)
-print("Connected to REDDIT.")
+try:
+    _reddit = praw.Reddit(user_agent = _REDDITuseragent)
+    _reddit.login(_REDDITbotusername, _REDDITbotpassword)
+    print("Connected to REDDIT.")
+except Exception as e:
+    exitpeacefully(e)
 
 
 #TIMINGS
@@ -1677,6 +1918,7 @@ _lastbannedusersfetchedtime = round(time.time())
 _lastexchangeratefetchedtime = round(time.time())
 _lastpendingupdatedtime = round(time.time())
 _lastpendingnotifiedtime = round(time.time())
+_lastbackuptime = round(time.time())
 
 _lastcommentevaluatedtime = get_last_time("lastcommentevaluatedtime")
 _lastfriendcommentevaluatedtime = get_last_time("lastfriendcommentevaluatedtime")
@@ -1687,6 +1929,7 @@ _lastbannedusersfetchedtime = get_last_time("lastbannedusersfetchedtime")
 _lastexchangeratefetchedtime = get_last_time("lastexchangeratefetchedtime")
 _lastpendingupdatedtime = get_last_time("lastpendingupdatedtime")
 _lastpendingnotifiedtime = get_last_time("lastpendingnotifiedtime")
+_lastbackuptime = get_last_time("lastbackuptime")
 
 _lastcommentevaluated = get_last_time("lastcommentevaluated")
 _lastfriendcommentevaluated = get_last_time("lastfriendcommentevaluated")
@@ -1711,54 +1954,70 @@ refresh_friends()
 _lastbannedusersfetched = []
 refresh_banned_users()
 
-#Initialize Exchange rates 
-#_lastexchangeratefetched = { "XBC":1, "CBC":100, "MBC":1000, "UBC":1000000, "SBC":100000000, 'USD':0, 'AUD':0, 'CAD':0, 'EUR':0, 'JPY':0, 'GBP':0}
+#get tx fee from bitcoind
+_txfee = 0.0005
+print ("Transaction fee is %f" % (_txfee))
+
+#Initialize Exchange rates for first time
+if (not _lastexchangeratefetched):
+    _lastexchangeratefetched = { "XBC":1, "CBC":100, "MBC":1000, "UBC":1000000, "SBC":100000000, 'USD':0, 'AUD':0, 'CAD':0, 'EUR':0, 'JPY':0, 'GBP':0}
 
 refresh_exchange_rate()
 
 print (_lastexchangeratefetched)
 
-'''
-_looping = 1
-# WHILE THE BOT DOESN'T HAVE ANY PROBLEMS, KEEP LOOPING OVER EVALUATING COMMENTS, MESSAGES, AND SUBMITTING REPLIES
-while(_looping):
-'''
+try:
+    # WHILE THE BOT DOESN'T HAVE ANY PROBLEMS, KEEP LOOPING OVER EVALUATING COMMENTS, MESSAGES, AND SUBMITTING REPLIES
+    while (True):
 
-while (True):
+        start_loop_time = round(time.time())
 
-    start_loop_time = round(time.time())
-
-    #UNLOCK BITCOIND WALLET
-    print ("Unlocking Bitcoin Wallet...")
-    print  (bitcoind.walletpassphrase(_BITCOINDsecondpass, 6000))
+        #UNLOCK BITCOIND WALLET
+        print ("Unlocking Bitcoin Wallet...")
+        print  (bitcoind.walletpassphrase(_BITCOINDsecondpass, 6000))
 
 
-    #CHECK/UPDATE EXCHANGE RATE
-    refresh_exchange_rate()
+        #CHECK/UPDATE EXCHANGE RATE
+        refresh_exchange_rate()
 
-    #CHECK FOR NEW REDDIT PERSONAL MESSAGES
-    eval_messages()
+        #CHECK FOR NEW REDDIT PERSONAL MESSAGES
+        eval_messages()
 
-    #CHECK FOR NEW COMMENTS
-    if (_botstatus == "up"): #if down, don't check comments
-        eval_comments()
+        #CHECK FOR NEW COMMENTS
+        if (_botstatus == "up"): #if down, don't check comments
+            eval_comments()
 
-    #UPDATE PENDING TRANSACTIONS
-    #if (_botstatus == "up"): #if down, don't update pending transactions
-        #update_transactions()
+        #UPDATE PENDING TRANSACTIONS
+        if (_botstatus == "up"): #if down, don't update pending transactions
+            update_transactions()
 
-    #SUBMIT MESSAGES IN OUTBOX TO REDDIT
-    submit_messages()
+        #LOCK BITCOIND WALLET
+        print ("Locking Bitcoin Wallet")
+        print (bitcoind.walletlock())
+        
+        #SUBMIT MESSAGES IN OUTBOX TO REDDIT
+        submit_messages()
 
-    #LOCK BITCOIND WALLET
+        #if the loop took less than 10 minutes, sleep for 5 min.
+        if (round(time.time())<(start_loop_time+600)):
+            print ("5 minutes left...")
+            time.sleep(60)
+            print ("4 minutes left...")
+            time.sleep(60)
+            print ("3 minutes left...")
+            time.sleep(60)
+            print ("2 minutes left...")
+            time.sleep(60)
+            print ("1 minutes left...")
+            time.sleep(60)
+            
+        #todo every 24 hours, backup the wallet.
+        if (round(time.time())>(_lastbackuptime+(24*60*60))):
+            createbackups()
+
+    #LOCK BITCOIND WALLET AT PROGRAM END
     print ("Locking Bitcoin Wallet")
     print (bitcoind.walletlock())
+except Exception as e:
 
-    #todo: sleep for a bit if all that didn't take very long.
-    if ((start_loop_time+120)>round(time.time())):
-        time.sleep(90)
-
-#LOCK BITCOIND WALLET AT PROGRAM END
-print ("Locking Bitcoin Wallet")
-print (bitcoind.walletlock())
-
+    exitpeacefully(e)

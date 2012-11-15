@@ -48,7 +48,7 @@ except ImportError:
 
 USER_AGENT = "AuthServiceProxy/0.1"
 
-HTTP_TIMEOUT = 600
+HTTP_TIMEOUT = 1200
 
 class JSONRPCException(Exception):
     def __init__(self, rpcError):
