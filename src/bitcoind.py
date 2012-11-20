@@ -644,58 +644,65 @@ Returns:
 def walletpassphrasechange(oldpassphrase, newpassphrase):
 		return access.walletpassphrasechange(oldpassphrase, newpassphrase)
 
+		
+		
 '''
-transact (special call to handle change correctly)
-<fromthing> <tothing> <amount>
-Sends amount from fromthing to tothing.  things may be either accounts or addresses.  Change will be sent back to fromthing's account.
+transact (special call to handle coin control correctly)
+<fromthing> <tothing> <amount> <txfee>
+Sends amount from fromthing to tothing.  things may be either accounts or addresses.  Change will be sent back to fromthing's Address.
 Y
 Returns:
 4db570957a740124c224f6035759ab9f484f1d32ce4b73a13ce7a3015c9c4bc8
 '''
 def transact(fromthing, tothing, amount, txfee):
 	
-	#get fromaccount from fromthing
+	#get fromAddress from fromthing
 	if (validateaddress(fromthing)['isvalid'] == True):
-		fromaccount = getaccount(fromthing)
+		fromAddress = fromthing
 	else:
-		fromaccount = fromthing
+		fromAddress = getaddressesbyaccount(tothing)[0]
 		
-	#get toaddressA from tothing
-	if (validateaddress(tothing)['isvalid'] == False):
-		toaddressA = getaddressesbyaccount(tothing)[0]
+	#get toAddress from tothing
+	if (validateaddress(tothing)['isvalid'] == True):
+		toAddress = tothing
 	else:
-		toaddressA = tothing
+		toAddress = getaddressesbyaccount(tothing)[0]
 		
-	#send change back to address of fromaccount
-	toaddressB = getaddressesbyaccount(fromaccount)[0]
-	
-	balance = float(getbalance(fromaccount))
-	amountA = amount
-	amountB = balance -amountA -txfee
-	amountA = round(amountA,8)
-	amountB = round(amountB,8)
-	
-	#if no change, don't use toaddressB or amountB
-	if (amountB==0):
-		recipients = {toaddressA:amountA}
-	else:
-		recipients = {toaddressA:amountA, toaddressB:amountB}
 
-	print ("From balance:", balance)
-	
-	print ("Sending Many...")
-	print ("From:", fromaccount)
-	if (amountB==0):
-		print (amountA, "to", toaddressA)
-	else:
-		print (amountA, "to", toaddressA)
-		print (amountB, "to", toaddressB)
-	print ("Fee:", txfee)
-	
-	txid = sendmany(fromaccount, recipients, minconf=0)
-		
-	return txid
-	
-	
+	#Get all the transactions to fromAddress that haven't been spent yet.
+	unspentTransactions = listunspent(0, 9999999, fromAddress)
 
-		
+	#go through the list of unspentTransactions until we have enough transactions to pay the amount and its txfee
+	toSpendTotal = 0
+	toSpendTransactions = []
+	n = 0
+	for i in unspentTransactions:
+		#to keep the list of unspent transactions short, each time we will use all the unspent transactions and converge them into one change output.
+			toSpendTotal += unspentTransactions[i]["amount"]
+			transaction = {"txid":unspentTransactions[i]["txid"],"vout":unspentTransactions[i]["output"]}
+			toSpendTransactions.append(transaction)
+		else:
+			#we have enough transactions to pay the amount
+			break
+
+	#all the unspentTransactions have been gone through, we either have enough or we don't, check it.
+	if (toSpendTotal<(amount+txfee)):
+		return "error"
+
+	#send everything but the amount and fee back to the fromAddress
+	#send the amount to the toAddress
+	toSpendPackage = {}
+	toSpendPackage[toAddress] = amount
+	toSpendPackage[fromAddress] = toSpendTotal -amount -txfee
+
+	#createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
+	hexstring = createrawtransaction(toSpendTransactions, toSpendPackage)
+	
+	#sign the transaction
+	signedtransaction = signrawtransaction(hexstring)
+	
+	if (signedtransaction["complete"]==1):
+		returntxid = sendrawtransaction(signedtransaction['hex'])
+		return returntxid
+	else
+		return "error"

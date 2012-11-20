@@ -1,6 +1,8 @@
 ﻿# -*- coding: utf-8 -*-
 #from decimal import Decimal
 
+import sys
+
 import subprocess
 
 #python reddit api wrapper
@@ -504,7 +506,7 @@ def update_transactions():
     
         
         ##do notifications weekly, not daily.
-        if ((_lastpendingnotifiedtime + _intervalpendingnotify) <= round(time.time())):
+        if ( round(time.time()) >=(_lastpendingnotifiedtime + _intervalpendingnotify) and False):
             print ("Going through each user to see if need to notify")
     
             ##go through each user and compile list of pending transactions to them.
@@ -645,14 +647,14 @@ def eval_tip(thing):
     regex_redditusername_string = regex_start_string+" (@?([A-Za-z0-9_-]{3,20}))\\b" #reddit username
     regex_currencysymbol_string = " ((\$)|&#36;|฿|&#3647;|&bitcoin;|¥|&#165;|&yen;|£|&#163;|&pound;|€|&#8364;|&euro;)"
     regex_currencyamount_string = "((\\d{1,3}(\\,\\d{3})*|(\\d+))(((\\.)(((\\d{3}\\,\\d{3}\\,\\d{1,2})|(\\d{3}\\,\\d{1,3}))|(\\d{1,8})))?))"
-    regex_currencycode_string = "((BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)"
+    regex_currencycode_string = "((BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|centibitcoin|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)"
     regex_all_string = "(\\bALL\\b)" #all keyword
     regex_flip_string = "(\\bFLIP\\b)" #flip keyword
     regex_amount_string = "((\\b("+regex_currencysymbol_string+"? ?("+regex_currencyamount_string+") ?"+regex_currencycode_string+"?)\\b)|"+regex_all_string+"|"+regex_flip_string+")"
     regex_verify_string = "(\\b(NOVERIFY|VERIFY)\\b)" #noverify keyword
     regex_internet_string = "(\\+1 internet(s)?)" #internet keyword
 
-    regex_tip_string = "((\\+(bitcointip|bitcoin|tip|btctip|bittip|btc)( ((@?1[A-Za-z0-9]{25,35})|((@)?([A-Za-z0-9_-]{3,20}))))?( ((((\$)|&#36;|฿|&#3647;|&bitcoin;|¥|&#165;|&yen;|£|&#163;|&pound;|€|&#8364;|&euro;)? ?((\\d{1,3}(\\,\\d{3})*|(\\d+))(((\\.)(((\\d{3}\\,\\d{3}\\,\\d{1,2})|(\\d{3}\\,\\d{1,3}))|(\\d{1,8})))?))( ?(BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)?)|ALL|FLIP))( (NOVERIFY|VERIFY))?)|(\\+1 internet(s)?))"
+    regex_tip_string = "((\\+(bitcointip|bitcoin|tip|btctip|bittip|btc)( ((@?1[A-Za-z0-9]{25,35})|((@)?([A-Za-z0-9_-]{3,20}))))?( ((((\$)|&#36;|฿|&#3647;|&bitcoin;|¥|&#165;|&yen;|£|&#163;|&pound;|€|&#8364;|&euro;)? ?((\\d{1,3}(\\,\\d{3})*|(\\d+))(((\\.)(((\\d{3}\\,\\d{3}\\,\\d{1,2})|(\\d{3}\\,\\d{1,3}))|(\\d{1,8})))?))( ?(BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|centibitcoin|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)?)|ALL|FLIP))( (NOVERIFY|VERIFY))?)|(\\+1 internet(s)?))"
 
     regex_start = re.compile(regex_start_string,re.IGNORECASE)
     regex_bitcoinaddress = re.compile(regex_bitcoinaddress_string,re.IGNORECASE)
@@ -757,25 +759,43 @@ def eval_tip(thing):
         transaction_to = tip_command_bitcoinaddress
     elif (tip_type == "comment"):
         #recipient not specified, get author of parent comment todo
-        parentpermalink = thing.permalink.replace(thing.name[3:], thing.parent_id[3:])
-        parentcomment = _reddit.get_submission(parentpermalink)
+        print ("COMMENT PERMALINK:",thing.permalink)
+        parentpermalink = thing.permalink.replace(thing.id, thing.parent_id[3:])
+        print ("PARENT PERMALINK:", parentpermalink)
+        
         
         commentlinkid = thing.link_id[3:]
         commentid = thing.id
         parentid = thing.parent_id[3:]
-        parentname = parentcomment.name[3:]
+        authorid = thing.author.name
+
+
         
-        #print ("commentlinkid", commentlinkid)
-        #print ("commentid",commentid)
-        #print ("parentid",parentid)
-        #print ("parentname",parentname)
-        #print ("parent author:",parentcomment.author.name)
-        #print ("other parent author:",parentcomment.comments[0].author.name)
-        
-        if (commentlinkid==parentname):#todo
-            parentcomment = parentcomment.comments[0]
+        #print ("SUBMISSIONID:", commentlinkid)
+        #print ("COMMENTID:",commentid)
+        #print ("PARENTID:",parentid)
+        #print ("AUTHORID:",authorid)
+
+        #print ("\n")
+
+        if (commentlinkid==parentid):
+            parentcomment = _reddit.get_submission(parentpermalink)
+        else:
+            parentcomment = _reddit.get_submission(parentpermalink).comments[0]
             
-        transaction_to = parentcomment.author.name
+
+        #parentcommentlinkid = parentcomment.link_id[3:]
+        #parentcommentid = parentcomment.id
+        #parentparentid = parentcomment.parent_id[3:]
+        parentauthorid = parentcomment.author.name
+
+        #print ("PARRENTSUBMISSIONID:", parentcommentlinkid)
+        #print ("PARENTCOMMENTID:",parentcommentid)
+        #print ("PARENTPARENTID:",parentparentid)
+        print ("PARENTAUTHORID:",parentauthorid)
+            
+        transaction_to = parentauthorid
+        print ("TRANSACTION_TO:",transaction_to)
     elif (tip_type == "message"):
         #malformed tip
         #must include recipient
@@ -804,6 +824,8 @@ def eval_tip(thing):
                                 "microbitcoin":"UBC",
                                 "bitcoin":"XBC",
                                 "bitcent":"CBC",
+								"centibitcoin":"CBC",
+								"centibit":"CBC",
                                 "millibit":"MBC",
                                 "microbit":"UBC",
                                 "satoshi":"SBC",
@@ -1132,7 +1154,7 @@ def find_message_command(message): #array
     
     if (_botstatus == "down" and returnstring==""):
         #if down, just reply with a down message to all messages
-        returnstring = "The bitcointip bot is currently down.\n\n[Click here for more information about the bot.](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/)\n\n[Click here for more information about bitcoin.](http://www.weusecoins.com/)\n\n[Click here to get a bitcoin wallet.](https://blockchain.info/wallet/)"
+        returnstring = "The bitcointip bot is currently down.\n\n[Click here for more information about the bot.](http://www.reddit.com/r/bitcoin/)"
     
     #See if the message author has a bitcointip account, if not, make one for them.
     add_user(message.author.name)
@@ -1175,8 +1197,8 @@ def find_message_command(message): #array
         
         #karma limits on which redditors can get bitcoins for their karma
         minlinkkarma = 0
-        mincommentkarma = 500
-        mintotalkarma = 500
+        mincommentkarma = 300
+        mintotalkarma = 300
 
         #baseline amount of bitcoin to give each redditor (enough to cover some mining fees)
         defaultbitcoinamount = 0.00200000
@@ -1266,7 +1288,7 @@ def find_message_command(message): #array
         else:
             print ("%s has already redeemed karma" % (message.author.name))
             #user has already redeemed karma, can't do it again.
-            returnstring = "You have already \\'sold\\' your karma for bitcoins.  You can only do this once."
+            returnstring = "You have already exchanged your karma for bitcoins.  You can only do this once."
     
     
     #"TRANSACTIONS"/"HISTORY"/"ACTIVITY"
@@ -1405,7 +1427,7 @@ def find_message_command(message): #array
             else:
                 returnstring = "There was some kind of error exporting your private key."
         else:
-            returnstring = "You have not donated enough to use that command"
+            returnstring = "You have not donated enough to use that command."
 
 
 
@@ -1421,7 +1443,7 @@ def find_message_command(message): #array
             print ("Asking if dump Private key for %s" % (message.author.name))
             returnstring = "Are you sure you want to export your private key?  Anyone (or thing) who knows your private key, can control the bitcoins associated with that bitcoin address.  Make sure you take adequate security considerations.\n\nIf you are sure, reply with YES EXPORT PRIVATE KEY.\n\n(Note: the address will not be in wallet import format yet, so only do this if you know what you are doing.)"
         else:
-            returnstring = "You have not donated enough to use that command"
+            returnstring = "You have not donated enough to use that command."
 
     
 
@@ -1577,12 +1599,12 @@ def find_message_command(message): #array
     command_help = regex_help.search(message.body)
     
     if (command_help and returnstring==""):
-        returnstring = "Check the [Help Page](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/)."
+        returnstring = "Check the /r/bitcointip subreddit for updates and announcements or the [Help Page](http://www.reddit.com/r/bitcointip) for a list of commands."
         
         
     ##NO COMMAND FOUND DO YOU NEED HELP?
     if (returnstring == ""):    
-        returnstring = "This is the bitcointip bot.  No command was found in your message.\n\nTo fund your account, send bitcoins to your Deposit Address.\n\nFor help with commands, see [This Page](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).\n\n*Replies from the bot take on average 7.5 minutes but may take 30 minutes or more in some cases.*\n\n*Deposits are updated once per hour.*"
+        returnstring = "No command was found in your message.\n\nTo fund your account, send bitcoins to your Deposit Address.\n\nFor help with commands, see [This Page](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).\n\nFor other news, see the /r/bitcointip subreddit."
         
         
 
@@ -1683,7 +1705,7 @@ def eval_comments():
     for comment in multi_reddits_comments:
         if (not first_comment_this_loop):
             first_comment_this_loop = round(comment.created_utc)
-        if (comment.created_utc <= _lastcommentevaluatedtime):
+        if (comment.created_utc <= _lastcommentevaluated):
             print ("old comment reached")
             break
         else:
@@ -1709,7 +1731,7 @@ def eval_comments():
     for comment in friends_reddit_comments:
         if (not first_comment_this_loop):
             first_comment_this_loop = round(comment.created_utc)
-        if (comment.created_utc <= _lastfriendcommentevaluatedtime):
+        if (comment.created_utc <= _lastfriendcommentevaluated):
             print ("old friend comment reached")
             break
         else:
@@ -1804,7 +1826,7 @@ def exitpeacefully(e):
     errorstring = ("Error, the bot has stopped running!\n\n\nException:",str(e))
     print ("Emailing Admin")
     #email admin alert
-    emailcommand = 'echo "The bot has stopped.\n\n Error:\n\n" | mutt -s "ALERT: BOT HAS STOPPED" -- root email'
+    emailcommand = 'echo "The bot has stopped.\n\n Error:\n\n" | mutt -s "ALERT: BOT HAS STOPPED" -- root '+_adminemail
     print (emailcommand)
     result = subprocess.call(emailcommand, shell=True)
     
@@ -1861,6 +1883,9 @@ _REDDITbotusername = "???"
 _REDDITbotpassword = "???"
 _REDDITuseragent = "???"
 
+_adminemail = "???"
+
+
 # BOTSTATUS (DOWN/UP)
 _botstatus = "up"
 
@@ -1870,7 +1895,8 @@ _intervalupdateexchangerate = 60*60*3
 #update transactions (pending->completed or pending->cancelled) every 24 hours
 _intervalpendingupdate = 60*60*24*1
 #update transactions (pending->cancelled) when transactions are 21 days old
-_intervalpendingcancel = 60*60*24*21
+#60 days to start with.
+_intervalpendingcancel = 60*60*24*60
 #notify users that they have a pending transaction for them every 7 days.
 _intervalpendingnotify = 60*60*24*7
 
@@ -1942,6 +1968,24 @@ _lastpendingupdated = get_last_time("lastpendingupdated")
 _lastpendingnotified = get_last_time("lastpendingnotified")
 
 
+#if first time, don't retroactively read things.
+if (_lastcommentevaluatedtime==0):
+    _lastcommentevaluatedtime = round(time.time())
+    set_last_time("lastcommentevaluatedtime", _lastcommentevaluatedtime)
+if (_lastfriendcommentevaluatedtime==0):
+    _lastfriendcommentevaluatedtime = round(time.time())
+    set_last_time("lastfriendcommentevaluatedtime", _lastfriendcommentevaluatedtime)
+if (_lastmessageevaluatedtime==0):
+    _lastmessageevaluatedtime = round(time.time())
+    set_last_time("lastmessageevaluatedtime", _lastmessageevaluatedtime)
+if (_lastpendingupdatedtime==0):
+    _lastpendingupdatedtime = round(time.time())
+    set_last_time("lastpendingupdatedtime", _lastpendingupdatedtime)
+if (_lastpendingnotifiedtime==0):
+    _lastpendingnotifiedtime = round(time.time())
+    set_last_time("lastpendingnotifiedtime", _lastpendingnotifiedtime)
+
+
 #get list of allowed subreddits by checking bitcointip's reddits/mine
 _lastallowedsubredditsfetched = []
 refresh_allowed_subreddits()
@@ -2000,16 +2044,9 @@ try:
 
         #if the loop took less than 10 minutes, sleep for 5 min.
         if (round(time.time())<(start_loop_time+600)):
-            print ("5 minutes left...")
-            time.sleep(60)
-            print ("4 minutes left...")
-            time.sleep(60)
-            print ("3 minutes left...")
-            time.sleep(60)
-            print ("2 minutes left...")
-            time.sleep(60)
-            print ("1 minutes left...")
-            time.sleep(60)
+            print ("Sleeping for 5 min...")
+            time.sleep(300)
+
             
         #todo every 24 hours, backup the wallet.
         if (round(time.time())>(_lastbackuptime+(24*60*60))):
