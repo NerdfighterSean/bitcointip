@@ -321,7 +321,7 @@ def does_transaction_exist(sender, receiver, timestamp):
     
 #create footer for the end of all PMs
 def get_footer(username):
-    footer = "\n\n---\n\n|||\n|:|:|\n| Account Owner: | **%s** |\n| Deposit Address: | **%s** |\n| Address Balance: | **&#3647;%.8f BTC** *(~$%.2f USD)* \n|\n\n[About Bitcointip](http://www.reddit.com/r/bitcointip) (BETA) **(TEST VERSION, DO NOT DEPOSIT!!!)**" % (username, get_user_address(username), get_user_balance(username), round(get_user_balance(username)*_lastexchangeratefetched['USD'],2))
+    footer = "\n\n---\n\n|||\n|:|:|\n| Account Owner: | **%s** |\n| Deposit Address: | **%s** |\n| Address Balance: | **&#3647;%.8f BTC** *(~$%.2f USD)* \n|\n\n[About Bitcointip](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/) (BETA) **(TEST VERSION, DO NOT DEPOSIT!!!)**" % (username, get_user_address(username), get_user_balance(username), round(get_user_balance(username)*_lastexchangeratefetched['USD'],2))
     return footer
     
     
@@ -1039,8 +1039,8 @@ def eval_tip(thing):
     altcurrency_amount = round(transaction_amount * (_lastexchangeratefetched[altcurrency_code]),2)
 
     #link to the transaction is hidden in the bitcoin symbol
-    verifiedmessage = "[[**✔**](https://blockchain.info/tx/%s)] **Verified**:[ %s ---> **&#3647;%.8f BTC** *(%s%.2f %s)* ---> %s ](http://reddit.com/r/bitcointip)" % (txid, transaction_from, transaction_amount, altcurrency_symbol, altcurrency_amount,altcurrency_code, transaction_to)
-    rejectedmessage = "[**X**] **Rejected**: [ ~~%s ---> **&#3647;%.8f BTC** *(%s%.2f %s)* ---> %s~~ ](http://reddit.com/r/bitcointip)" % (transaction_from, transaction_amount, altcurrency_symbol, altcurrency_amount,altcurrency_code, transaction_to)
+    verifiedmessage = "[[**✔**](https://blockchain.info/tx/%s)] **Verified**:[ %s ---> **&#3647;%.8f BTC** *(%s%.2f %s)* ---> %s ](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/)" % (txid, transaction_from, transaction_amount, altcurrency_symbol, altcurrency_amount,altcurrency_code, transaction_to)
+    rejectedmessage = "[**X**] **Rejected**: [ ~~%s ---> **&#3647;%.8f BTC** *(%s%.2f %s)* ---> %s~~ ](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/)" % (transaction_from, transaction_amount, altcurrency_symbol, altcurrency_amount,altcurrency_code, transaction_to)
 
     #create special response for flip
     if (tip_command_flip and cancelmessage==""):
@@ -1125,18 +1125,7 @@ def eval_tip(thing):
         sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp)  VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f')" % ("", "message", transaction_to, pmreceiversubject, pmreceivermessage, "", "", "0", tip_timestamp)
         _mysqlcursor.execute(sql)
         _mysqlcon.commit()
-
-
-    #if the tip was a comment and replied to, mark as success or fail. 
-    if (commentreplymessage):
-        if (txid!="error"):
-            #upvote it
-            thing.upvote()
-            print ("Comment Upvoted")
-        else:
-            #downvote it   
-            thing.downvote()
-            print ("Comment Downvoted")
+   
             
     if (tip_command):
         #tip found and done
@@ -1154,7 +1143,7 @@ def find_message_command(message): #array
     
     if (_botstatus == "down" and returnstring==""):
         #if down, just reply with a down message to all messages
-        returnstring = "The bitcointip bot is currently down.\n\n[Click here for more information about the bot.](http://www.reddit.com/r/bitcoin/)"
+        returnstring = "The bitcointip bot is currently down.\n\n[Click here for more information about the bot.](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/)"
     
     #See if the message author has a bitcointip account, if not, make one for them.
     add_user(message.author.name)
@@ -1183,7 +1172,7 @@ def find_message_command(message): #array
     command_signupmessage = regex_signupmessage.search(message.body)
     
     if (command_signupmessage and returnstring==""):
-        returnstring = "Welcome to the bitcointip bot. This is the signup message."
+        returnstring = "Welcome to the bitcointip bot.\n\nTo get started, send bitcoins to your deposit address.  Once you have a balance, you can tip other redditors in comments if that subreddit is enabled.  For a full list of commands, see the [Help Page](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/).\n\nIf you find a bug or have a suggestion, post it in the /r/bitcointip subreddit."
     
     #"REDEEM KARMA: 1thisisabitcoinaddresshereyes"
     #if bitcoinaddress is valid, 
@@ -1599,12 +1588,12 @@ def find_message_command(message): #array
     command_help = regex_help.search(message.body)
     
     if (command_help and returnstring==""):
-        returnstring = "Check the /r/bitcointip subreddit for updates and announcements or the [Help Page](http://www.reddit.com/r/bitcointip) for a list of commands."
+        returnstring = "Check the /r/bitcointip subreddit for updates and announcements or the [Help Page](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/) for a list of commands."
         
         
     ##NO COMMAND FOUND DO YOU NEED HELP?
     if (returnstring == ""):    
-        returnstring = "No command was found in your message.\n\nTo fund your account, send bitcoins to your Deposit Address.\n\nFor help with commands, see [This Page](http://www.reddit.com/r/test/comments/11iby2/bitcointip_tip_redditors_with_bitcoin/).\n\nFor other news, see the /r/bitcointip subreddit."
+        returnstring = "No command was found in your message.\n\nTo fund your account, send bitcoins to your Deposit Address.\n\nFor help with commands, see [This Page](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/).\n\nFor other news, see the /r/bitcointip subreddit."
         
         
 
@@ -1877,7 +1866,7 @@ _BITCOINDlogin = "???"
 _BITCOINDpass = "???"
 _BITCOINDip = "???"
 _BITCOINDport = "???"
-_BITCOINDsecondpass = "???"
+_BITCOINDsecondpass = sys.argv[1]
 
 _REDDITbotusername = "???"
 _REDDITbotpassword = "???"

@@ -675,7 +675,6 @@ def transact(fromthing, tothing, amount, txfee):
 	#go through the list of unspentTransactions until we have enough transactions to pay the amount and its txfee
 	toSpendTotal = 0
 	toSpendTransactions = []
-	n = 0
 	for i in unspentTransactions:
 		#to keep the list of unspent transactions short, each time we will use all the unspent transactions and converge them into one change output.
 			toSpendTotal += unspentTransactions[i]["amount"]
