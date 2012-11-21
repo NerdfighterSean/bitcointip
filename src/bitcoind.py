@@ -1,5 +1,10 @@
 from functools import wraps
 
+def JSONtoAmount(value):
+    return long(round(value))
+def AmountToJSON(amount):
+    return float(amount)
+
 def my_decorator(f):
 	@wraps(f)
 	def wrapper(*args, **kwds):
@@ -460,8 +465,8 @@ Returns:
 []
 '''
 @my_decorator
-def listunspent(minconf=0, maxconf=999999):
-		return access.listunspent()
+def listunspent(minconf=0, maxconf=999999, addresslist=[]):
+		return access.listunspent(minconf, maxconf, addresslist)
 
 '''
 move
@@ -646,6 +651,7 @@ def walletpassphrasechange(oldpassphrase, newpassphrase):
 
 		
 		
+
 '''
 transact (special call to handle coin control correctly)
 <fromthing> <tothing> <amount> <txfee>
@@ -660,7 +666,7 @@ def transact(fromthing, tothing, amount, txfee):
 	if (validateaddress(fromthing)['isvalid'] == True):
 		fromAddress = fromthing
 	else:
-		fromAddress = getaddressesbyaccount(tothing)[0]
+		fromAddress = getaddressesbyaccount(fromthing)[0]
 		
 	#get toAddress from tothing
 	if (validateaddress(tothing)['isvalid'] == True):
@@ -670,38 +676,65 @@ def transact(fromthing, tothing, amount, txfee):
 		
 
 	#Get all the transactions to fromAddress that haven't been spent yet.
-	unspentTransactions = listunspent(0, 9999999, fromAddress)
+	unspentTransactions = listunspent(0, 9999999, [fromAddress])
 
+	print (unspentTransactions)
+	
 	#go through the list of unspentTransactions until we have enough transactions to pay the amount and its txfee
 	toSpendTotal = 0
 	toSpendTransactions = []
-	for i in unspentTransactions:
+	for transaction in unspentTransactions:
 		#to keep the list of unspent transactions short, each time we will use all the unspent transactions and converge them into one change output.
-			toSpendTotal += unspentTransactions[i]["amount"]
-			transaction = {"txid":unspentTransactions[i]["txid"],"vout":unspentTransactions[i]["output"]}
-			toSpendTransactions.append(transaction)
-		else:
-			#we have enough transactions to pay the amount
-			break
+		toSpendTotal += transaction["amount"]
+		spendTransaction = {"txid":transaction["txid"],"vout":transaction["vout"]}
+		toSpendTransactions.append(spendTransaction)
 
+	print ("toSpendTransactions:", toSpendTransactions)
+		
 	#all the unspentTransactions have been gone through, we either have enough or we don't, check it.
 	if (toSpendTotal<(amount+txfee)):
 		return "error"
+	else:
+		print (toSpendTotal)
 
+	pprint.pprint(toSpendTotal)
+		
 	#send everything but the amount and fee back to the fromAddress
 	#send the amount to the toAddress
 	toSpendPackage = {}
-	toSpendPackage[toAddress] = amount
-	toSpendPackage[fromAddress] = toSpendTotal -amount -txfee
+	toSpendPackage[toAddress] = AmountToJSON(Decimal(amount))
+	toSpendPackage[fromAddress] = AmountToJSON(Decimal(toSpendTotal) -Decimal(amount) -Decimal(txfee))
+	
+	print ("toSpendPackage:", toSpendPackage)
 
 	#createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 	hexstring = createrawtransaction(toSpendTransactions, toSpendPackage)
 	
+	print ("hexstring",hexstring)
+	
 	#sign the transaction
 	signedtransaction = signrawtransaction(hexstring)
+	print ("signedtransaction",signedtransaction)
 	
 	if (signedtransaction["complete"]==1):
 		returntxid = sendrawtransaction(signedtransaction['hex'])
+		print ("returntxid",returntxid)
 		return returntxid
-	else
+	else:
 		return "error"
+		
+'''
+use this instead of getbalance.
+'''
+def getaddressbalance(thing, minconf=0):
+
+    if (validateaddress(thing)['isvalid'] == True):
+        address = [thing]
+    else:
+        address = getaddressesbyaccount(thing)
+
+    unspent = listunspent(minconf=minconf, maxconf=999999, addresslist=address)
+    balance=0
+    for transaction in unspent:
+        balance += transaction['amount']
+    return balance

@@ -229,7 +229,7 @@ def get_user_balance(username):
     #if not user, add user
     add_user(username)
     
-    userbalance = bitcoind.getbalance(username)
+    userbalance = bitcoind.getaddressbalance(username)
     
     if (userbalance != "error"):
         return (float(userbalance))
