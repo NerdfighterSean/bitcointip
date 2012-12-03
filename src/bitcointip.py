@@ -1,5 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 
+import argparse
+
 from decimal import Decimal
 
 import sys
@@ -1937,6 +1939,22 @@ def createbackups():
     set_last_time("lastbackuptime", _lastbackuptime)
 
 
+argument_parser = argparse.ArgumentParser(
+  description = "Runs the Bitcointip bot",
+)
+argument_parser.add_argument(
+  'bitcoind_second_password',
+  metavar='PASSWORD',
+  type=str,
+  help="bitcoind's second password to unlock the wallet",
+)
+argument_parser.add_argument(
+  'dsn_url',
+  metavar='DATABASE_URL',
+  type=str,
+  help="Database URL (like 'sqlite:///bitcointip.db') conforming to http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html",
+)
+cmdline_args = argument_parser.parse_args()
 
 ######################################################################
 #MAIN
@@ -1952,7 +1970,7 @@ _BITCOINDlogin = "???"
 _BITCOINDpass = "???"
 _BITCOINDip = "???"
 _BITCOINDport = "???"
-_BITCOINDsecondpass = sys.argv[1]
+_BITCOINDsecondpass = cmdline_args.bitcoind_second_password
 
 _REDDITbotusername = "???"
 _REDDITbotpassword = "???"
@@ -1978,7 +1996,8 @@ _intervalpendingnotify = 60*60*24*7
 
 # CONNECT TO MYSQL DATABASE
 try:
-    databaseobject = btctip.db.BitcointipDatabase()
+    dsn_url = cmdline_args.dsn_url
+    databaseobject = btctip.db.BitcointipDatabase(dsn_url)
     _mysqlcon = databaseobject.connect()
     _mysqlcursor = _mysqlcon
     print ("Connected to database.")

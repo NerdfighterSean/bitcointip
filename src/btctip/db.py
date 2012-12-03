@@ -67,7 +67,7 @@ class BitcointipDatabase:
     Column("giftamount", Numeric(10)),
   )
   
-  def __init__(self, dsn_url='sqlite:///bitcointip.db'):
+  def __init__(self, dsn_url):
     '''Pass a DSN URL conforming to the SQLAlchemy API'''
     self.dsn_url = dsn_url
   
