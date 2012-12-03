@@ -4,8 +4,6 @@ import argparse
 
 from decimal import Decimal
 
-import sys
-
 import subprocess
 
 #python reddit api wrapper
