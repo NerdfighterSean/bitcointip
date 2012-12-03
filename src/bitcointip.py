@@ -19,8 +19,8 @@ from jsonrpc import ServiceProxy
 #timestamp = round(time.time())
 import time
 
-#mysql database stuff
-import pymysql
+#database stuff
+import btctip.db
 
 #datastring = urllib.request.urlopen(url).read()
 import urllib
@@ -1978,9 +1978,10 @@ _intervalpendingnotify = 60*60*24*7
 
 # CONNECT TO MYSQL DATABASE
 try:
-    _mysqlcon = pymysql.connect(host=_MYSQLhost, port=_MYSQLport, user=_MYSQLlogin, passwd=_MYSQLpass, db=_MYSQLdbname, use_unicode=True, charset='utf8')
-    _mysqlcursor = _mysqlcon.cursor()
-    print ("Connected to MYSQL.")
+    databaseobject = btctip.db.BitcointipDatabase()
+    _mysqlcon = databaseobject.connect()
+    _mysqlcursor = _mysqlcon
+    print ("Connected to database.")
 except Exception as e:
     exitpeacefully(e)
 
