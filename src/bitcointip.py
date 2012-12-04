@@ -36,12 +36,36 @@ import string
 
 import random
 
-
+base58alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 
 ######################################################################
 #FUNCTIONS
 ######################################################################
+
+#turn a Wallet Import Format Private key into it's hex private key
+def WIFtohexprivkey(s):
+    """ Decodes the base58-encoded string WIF to hexadecimal private key string"""
+    base_count = len(base58alphabet)
     
+    decoded = 0
+    multi = 1
+    s = s[::-1]
+    for char in s:
+        decoded += multi * base58alphabet.index(char)
+        multi = multi * base_count
+        hexprivkey = hex(decoded)
+        
+        bytestring = str(hexprivkey)
+        
+        #drop hex code and first 2 chars
+        bytestring = bytestring[4:]
+
+        #drop end checksum
+        bytestring = bytestring[:-8]
+        
+    return bytestring
+
+
 #function for updating the timestamp of the most recent thing done
 def set_last_time(thingtype, value):
 
@@ -1462,35 +1486,80 @@ def find_message_command(message): #array
     
 
 
-    #Actual export private key
+#Actual export private key
     ###"Export private key"
-    ###TRANSFER BALANCE: Y/N"
-    regex_exportkey = re.compile("(YES EXPORT PRIVATE KEY)",re.IGNORECASE)
+    regex_exportkey = re.compile("((EXPORT PRIVATE KEY)|(CREATE WALLET))",re.IGNORECASE)
     command_exportkey = regex_exportkey.search(message.body)
     
     if (command_exportkey and returnstring==""):
-        if (get_user_gift_amount(message.author.name) >= Decimal('0.5')):
+        if (get_user_balance(message.author.name)>Decimal('0')):
             print ("Dumping Private key for %s" % (message.author.name))
-            privatekey = bitcoind.dumpprivkey(get_user_address(message.author.name))
-            if (privatekey!="error"):
-                obfuscatedprivatekey = privatekey
-                obfuscation = {"1":"(A)",
-                            "2":"(B)",
-                            "3":"(C)",
-                            "4":"(D)",
-                            "5":"(E)",
-                            "6":"(F)",
-                            "7":"(G)",
-                            "8":"(H)",
-                            "9":"(I)"
-                            }
-                for key in obfuscation:
-                    obfuscatedprivatekey = obfuscatedprivatekey.replace(key, obfuscation[key])
-                returnstring = "Your obfuscated (not encrypted) private key is: %s.  To deobfuscate it, replace all the letters in parenthesis with the digit of its position in the English Alphabet.\n\n**Keep it secret. Keep it safe.**" % (obfuscatedprivatekey)
+            username = None
+            guid = None
+            password = None
+            link = None
+
+            #Check if user already has blockchain.info wallet.
+            sql = "SELECT * FROM TEST_TABLE_BLOCKCHAINACCOUNTS WHERE username='%s'" % (message.author.name)
+            _mysqlcursor.execute(sql)
+            result = _mysqlcursor.fetchall()
+            for row in result:
+                username = row[0]
+                guid = row[1]
+                password = row[2]
+                link = "https://blockchain.info/wallet/" + guid
+
+            if (not guid):
+                username = message.author.name
+                #Export private key:
+                WIFprivkey = bitcoind.dumpprivkey(get_user_address(username))
+                hexprivkey = WIFtohexprivkey(WIFprivkey)
+    
+                #create new blockchain.info wallet
+                password = ''
+                for i in range(12):
+                    char = random.choice(base58alphabet)
+                    password += char
+                #print ("hexprivkey", hexprivkey)
+                print ("password",password)
+				
+				#not public
+                url = "CALL TO CREATE A BLOCKCHAIN.INFO ACCOUNT" % ("???")
+                print ("url",url)
+
+
+                req = urllib.request.Request(url)
+                file = urllib.request.urlopen(req)
+
+                encoding = file.headers.get_content_charset()
+                content = file.readall().decode(encoding)
+
+                print ("content",content)
+                try:
+                    jsondata = json.loads(content)
+                except Exception as e:
+                    content = content.replace("\"address\":", "\"address\":\"")
+                    content = content.replace(", \"link\"", "\", \"link\"")
+                    jsondata = json.loads(content)
+                print ("jsondata",jsondata)
+                guid = jsondata["guid"]
+                print ("guid",guid)
+                link = "https://blockchain.info/wallet/" + guid
+
+                #write the username, guid, and pass to table
+                sql = "INSERT INTO TEST_TABLE_BLOCKCHAINACCOUNTS (username, guid, password) VALUES ('%s', '%s', '%s')" % (username, guid, password)
+                _mysqlcursor.execute(sql)
+                _mysqlcon.commit()
+                print("Inserted to MYSQL BLOCKCHAINACCOUNTS : %s" % (username))
+
+            if (guid):
+                #prepare the message
+                returnstring = "You can use this ID and password to log in to a bitcoin wallet created for you at [http://blockchain.info](http://blockchain.info).  This wallet has been preloaded with your bitcointip address private key.  From there you can make transactions from your bitcointip address to other bitcoin addresses without being on reddit.\n\n|||\n|:|:|\n| Link: | **%s** |\n| ID: | **%s** |\n| Password: | **%s**|\n\n**It is recommended that you change your wallet password after logging in.**" % (link, guid, password)
             else:
-                returnstring = "There was some kind of error exporting your private key."
+                #there was a problem
+                returnstring = "There was a problem making your [blockchain.info](http://blockchain.info) wallet."
         else:
-            returnstring = "You have not donated enough to use that command."
+            returnstring = "You need a nonzero balance before you can get a [blockchain.info](http://blockchain.info) wallet."
 
 
 
