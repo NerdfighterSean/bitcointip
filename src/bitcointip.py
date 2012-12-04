@@ -37,7 +37,7 @@ import string
 import random
 
 
-#todo correct type handling when retrieving from table.
+
 ######################################################################
 #FUNCTIONS
 ######################################################################
@@ -830,7 +830,7 @@ def eval_tip(thing):
         tip_command_bitcoinaddress = tip_command_bitcoinaddress.strip(' ')
         transaction_to = tip_command_bitcoinaddress
     elif (tip_type == "comment"):
-        #recipient not specified, get author of parent comment todo
+        #recipient not specified, get author of parent comment
         print ("COMMENT PERMALINK:",thing.permalink)
         parentpermalink = thing.permalink.replace(thing.id, thing.parent_id[3:])
         print ("PARENT PERMALINK:", parentpermalink)
@@ -1086,7 +1086,7 @@ def eval_tip(thing):
     elif (transaction_to == "" and cancelmessage==""):
         cancelmessage="You must specify a recipient username or bitcoin address."
         
-    #todo, don't do tx if flipresult=0
+    
     if (cancelmessage or (tip_command_flip and flipresult==0)):
         txid="error"
     else:
@@ -1151,7 +1151,7 @@ def eval_tip(thing):
         _mysqlcursor.execute(sql)
         _mysqlcon.commit()
         
-    #TODOif 
+    
     #Send a message to the sender under what conditions?
     #if flipping, only send a pm to sender if they don't have enough for a flip.
     #if +1internet, do not send a pm to sender under any circumstance. (nonusers may use this without intent to tip, don't bother them)
@@ -1935,6 +1935,44 @@ def createbackups():
     print ("Backed up mysql db")
     _lastbackuptime = round(time.time())
     set_last_time("lastbackuptime", _lastbackuptime)
+	
+	
+def main():
+        
+    #update user flair and friends based on gift amount for manually entered entries
+    #refresh_user_flair()
+        
+    #UNLOCK BITCOIND WALLET
+    print ("Unlocking Bitcoin Wallet... for 20 minutes")
+    print  (bitcoind.walletpassphrase(_BITCOINDsecondpass, 20*60))
+
+
+    #CHECK/UPDATE EXCHANGE RATE
+    refresh_exchange_rate()
+
+    #CHECK FOR NEW REDDIT PERSONAL MESSAGES
+    eval_messages()
+
+    #CHECK FOR NEW COMMENTS
+    if (_botstatus == "up"): #if down, don't check comments
+        eval_comments()
+
+    #UPDATE PENDING TRANSACTIONS
+    if (_botstatus == "up"): #if down, don't update pending transactions
+        update_transactions()
+
+    #LOCK BITCOIND WALLET
+    print ("Locking Bitcoin Wallet")
+    print (bitcoind.walletlock())
+        
+    #SUBMIT MESSAGES IN OUTBOX TO REDDIT
+    submit_messages()
+            
+    #todo every 12 hours, backup the wallet.
+    if (round(time.time())>(_lastbackuptime+(12*60*60))):
+        createbackups()
+
+
 
 
 argument_parser = argparse.ArgumentParser(
@@ -2103,53 +2141,39 @@ refresh_exchange_rate()
 
 print (_lastexchangeratefetched)
 
-try:
-    # WHILE THE BOT DOESN'T HAVE ANY PROBLEMS, KEEP LOOPING OVER EVALUATING COMMENTS, MESSAGES, AND SUBMITTING REPLIES
-    while (True):
 
-        start_loop_time = round(time.time())
-        
-        #update user flair and friends based on gift amount for manually entered entries
-        #refresh_user_flair()
-        
-        #UNLOCK BITCOIND WALLET
-        print ("Unlocking Bitcoin Wallet... for 20 minutes")
-        print  (bitcoind.walletpassphrase(_BITCOINDsecondpass, 20*60))
+_sleeptime = 5*60
+
+while (True):
+
+    try:
+
+        main()
+
+        #exponential sleeptime approach to reddit.com with min of ~5 minutes.
+        #if successful and has been slowed down, speed up.
+        if (_sleeptime>(7*60)):
+            _sleeptime = round(_sleeptime/2)
+
+    except Exception as e:
+
+        #exponential sleeptime backoff from reddit.com
+        #if not successful, slow down.
+        if (str(e)=="HTTP Error 504: Gateway Time-out" or str(e)=="timed out"):
+            _sleeptime = round(_sleeptime*2)
+        else:
+            exitpeacefully(e)
+
+    #if sleeping for a long time, email admin.
+    if (_sleeptime>=(10*60)):
+        emailcommand = 'echo "The bot is sleeping for ' + str(_sleeptime/60) + ' minutes." | mutt -s "ALERT: BOT IS SLEEPING" -- root '+_adminemail
+        print (emailcommand)
+        result = subprocess.call(emailcommand, shell=True)
+
+    print ("Sleeping for:", str(_sleeptime/60), "minutes.")
+    time.sleep(_sleeptime)
 
 
-        #CHECK/UPDATE EXCHANGE RATE
-        refresh_exchange_rate()
-
-        #CHECK FOR NEW REDDIT PERSONAL MESSAGES
-        eval_messages()
-
-        #CHECK FOR NEW COMMENTS
-        if (_botstatus == "up"): #if down, don't check comments
-            eval_comments()
-
-        #UPDATE PENDING TRANSACTIONS
-        if (_botstatus == "up"): #if down, don't update pending transactions
-            update_transactions()
-
-        #LOCK BITCOIND WALLET
-        print ("Locking Bitcoin Wallet")
-        print (bitcoind.walletlock())
-        
-        #SUBMIT MESSAGES IN OUTBOX TO REDDIT
-        submit_messages()
-            
-        #todo every 12 hours, backup the wallet.
-        if (round(time.time())>(_lastbackuptime+(12*60*60))):
-            createbackups()
-            
-        #if the loop took less than 10 minutes, sleep for 5 min.
-        if (round(time.time())<(start_loop_time+600)):
-            print ("Sleeping for 5 min...")
-            time.sleep(300)
-
-    #LOCK BITCOIND WALLET AT PROGRAM END
-    print ("Locking Bitcoin Wallet")
-    print (bitcoind.walletlock())
-except Exception as e:
-
-    exitpeacefully(e)
+#LOCK BITCOIND WALLET AT PROGRAM END
+print ("Locking Bitcoin Wallet")
+print (bitcoind.walletlock())
