@@ -1918,11 +1918,13 @@ def submit_messages():
             timestamp = float(row[8])
             
             print ("Type:", thingtype)
+            print ("replyto:", replyto)
             
             if ( thingtype == "comment" ): 
-                comment = _reddit.get_submission(replyto).comments[0]
-                
+
                 try:
+                    comment = _reddit.get_submission(replyto).comments[0]
+                    print ("got comment")
                     comment.reply(text)
                     print ("Comment Sent")
                     ##it worked.
@@ -1932,7 +1934,7 @@ def submit_messages():
                     print ("Comment Marked as delivered")
                     
                 except Exception as e:
-                    print ("Error:",e)
+                    print ("Error:",str(e))
                     print ("Comment not delivered...skipping for now.")
                 
 
@@ -1948,7 +1950,7 @@ def submit_messages():
                     print ("Message marked as delivered")
                         
                 except Exception as e:
-                    print ("message not sent", e)
+                    print ("message not sent...skipping for now.", str(e))
                     if (e == "Error `that user doesn't exist` on field `to`"):
                         #user doesn't exist, cancel the message
                         sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=x WHERE type='%s' AND timestamp='%f' AND replyto='%s'" % (thingtype, timestamp, replyto)
