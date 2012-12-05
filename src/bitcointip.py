@@ -685,12 +685,13 @@ def eval_tip(thing):
     thing.body = thing.body.replace("&amp;","&")
     #Speed things up by doing these simple checks:
     #check body for bitcointip command keyword. if no result, return 0
-    regex_keyword_string = "(\\+(bitcointip|bitcoin|tip|btctip|bittip|btc))"
+    #todo vanity
+    regex_keyword_string = "((\\+(bitcointip|bitcoin|tip|btctip|bittip|btc))|((\\+((?!0)(\\d{1,4})) internet(s)?)|(\\+((?!0)(\\d{1,4})) point(s)? to (Gryffindor|Slytherin|Ravenclaw|Hufflepuff))))"
     regex_keyword = re.compile(regex_keyword_string,re.IGNORECASE)
     tip_command_keyword = regex_keyword.search(thing.body)
     if (not tip_command_keyword):
         return False
-    #check author's balance.  if 0, return 0
+    #check author's balance.  if 0, return False
     add_user(thing.author.name)
     if (get_user_balance(thing.author.name)<=0):
         return False
@@ -722,11 +723,11 @@ def eval_tip(thing):
     
     #Now get the properties of the tip string
     ##isolate the tipping command
-    regex_start_string = "(\\+(bitcointip|bitcoin|tip|btctip|bittip|btc))" #start tip 0
+    regex_start_string = "(\\+(bitcointip|bitcoin|tip|btctip|bittip|btc))" #start tip
     regex_bitcoinaddress_string = regex_start_string+" (@?((1|3)[A-Za-z0-9]{25,35}))\\b" #bitcoin address
     regex_redditusername_string = regex_start_string+" (@?([A-Za-z0-9_-]{3,20}))\\b" #reddit username
     regex_currencysymbol_string = " ((\$)|&#36;|฿|&#3647;|&bitcoin;|¥|&#165;|&yen;|£|&#163;|&pound;|€|&#8364;|&euro;)"
-    regex_currencyamount_string = "(((\\d{1,3}(\\,\\d{3})+)|(\\d+))(((\\.)(((\\d{3}\\,\\d{3}\\,\\d{1,2})|(\\d{3}\\,\\d{1,3}))|(\\d{1,8})))?))"
+    regex_currencyamount_string = "((\\d|\\,){0,10}(\\d\\.?|\\.(\\d|\\,){0,10}))"
     regex_currencycode_string = "((BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|centibitcoin|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)"
     regex_all_string = "(\\bALL\\b)" #all keyword
     regex_flip_string = "(\\bFLIP\\b)" #flip keyword
@@ -741,9 +742,11 @@ def eval_tip(thing):
     regex_amount_string_symbol_amount_code = "((\\b("+regex_currencysymbol_string+" ?("+regex_currencyamount_string+") ?"+regex_currencycode_string+")\\b)|"+regex_all_string+"|"+regex_flip_string+")"
     
     regex_verify_string = "(\\b(NOVERIFY|VERIFY)\\b)" #noverify keyword
-    regex_internet_string = "(\\+1 internet(s)?)" #internet keyword
+    #old regex_internet_string = "(\\+1 internet(s)?)" #internet keyword
+    
+    regex_vanitytip_string = "((\\+((?!0)(\\d{1,4})) internet(s)?)|(\\+((?!0)(\\d{1,4})) point(s)? (to|for) (Gryffindor|Slytherin|Ravenclaw|Hufflepuff)))"
 
-    regex_tip_string = "((\\+(bitcointip|bitcoin|tip|btctip|bittip|btc)( ((@?1[A-Za-z0-9]{25,35})|((@)?([A-Za-z0-9_-]{3,20}))))?( ((((\$)|&#36;|฿|&#3647;|&bitcoin;|¥|&#165;|&yen;|£|&#163;|&pound;|€|&#8364;|&euro;)? ?(((\\d{1,3}(\\,\\d{3})+)|(\\d+))(((\\.)(((\\d{3}\\,\\d{3}\\,\\d{1,2})|(\\d{3}\\,\\d{1,3}))|(\\d{1,8})))?))( ?(BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|centibitcoin|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)?)|ALL|FLIP))( (NOVERIFY|VERIFY))?)|(\\+1 internet(s)?))"
+    regex_tip_string = "((\\+(bitcointip|bitcoin|tip|btctip|bittip|btc)( ((@?1[A-Za-z0-9]{25,35})|((@)?([A-Za-z0-9_-]{3,20}))))?( ((((\$)|&#36;|฿|&#3647;|&bitcoin;|¥|&#165;|&yen;|£|&#163;|&pound;|€|&#8364;|&euro;)? ?((\\d|\\,){0,10}(\\d\\.?|\\.(\\d|\\,){0,10}))( ?(BTC|XBC|bitcoin|mBTC|CBC|MBC|millibitcoin|millibit|cBTC|bitcent|centibit|centibitcoin|USD|dollar|american|AUD|australian|CAD|canadian|GBP|pound|EUR|euro|JPY|yen)(s)?)?)|ALL|FLIP))( (NOVERIFY|VERIFY))?)|((\\+((?!0)(\\d{1,4})) internet(s)?)|(\\+((?!0)(\\d{1,4})) point(s)? to (Gryffindor|Slytherin|Ravenclaw|Hufflepuff))))"
 
     regex_start = re.compile(regex_start_string,re.IGNORECASE)
     regex_bitcoinaddress = re.compile(regex_bitcoinaddress_string,re.IGNORECASE)
@@ -752,11 +755,14 @@ def eval_tip(thing):
     regex_amount_symbol_amount_code = re.compile(regex_amount_string_symbol_amount_code,re.IGNORECASE)
     regex_amount_symbol_amount = re.compile(regex_amount_string_symbol_amount,re.IGNORECASE)
     regex_amount_amount_code = re.compile(regex_amount_string_amount_code,re.IGNORECASE)
+    regex_amount_amount = re.compile(regex_currencyamount_string,re.IGNORECASE)
+    
                     
     regex_all = re.compile(regex_all_string,re.IGNORECASE)
     regex_flip = re.compile(regex_flip_string,re.IGNORECASE)
     regex_verify = re.compile(regex_verify_string,re.IGNORECASE)
-    regex_internet = re.compile(regex_internet_string,re.IGNORECASE)
+    #old regex_internet = re.compile(regex_internet_string,re.IGNORECASE)
+    regex_vanitytip = re.compile(regex_vanitytip_string,re.IGNORECASE)
     regex_tip = re.compile(regex_tip_string,re.IGNORECASE)
 
     #isolate the tip_command from the text body
@@ -836,7 +842,8 @@ def eval_tip(thing):
             print ("command_verify:",tip_command_verify)
         else:
             tip_command_verify = ""
-            
+        '''
+        old
         tip_command_internet = regex_internet.search(tip_command)
         if (tip_command_internet):
             print (tip_command_internet.groups())
@@ -844,6 +851,15 @@ def eval_tip(thing):
             print ("command_internet:",tip_command_internet)
         else:
             tip_command_internet = ""
+        '''
+        
+        tip_command_vanitytip = regex_vanitytip.search(tip_command)
+        if (tip_command_vanitytip):
+            print (tip_command_vanitytip.groups())
+            tip_command_vanitytip = tip_command_vanitytip.groups()[0]
+            print ("command_vanitytip:",tip_command_vanitytip)
+        else:
+            tip_command_vanitytip = ""
         
     else:
         tip_command = ""
@@ -864,10 +880,10 @@ def eval_tip(thing):
         tip_command_bitcoinaddress = tip_command_bitcoinaddress.strip(' ')
         transaction_to = tip_command_bitcoinaddress
     elif (tip_type == "comment"):
-        #recipient not specified, get author of parent comment
-        print ("COMMENT PERMALINK:",thing.permalink)
+        #recipient not specified, get author of parent comment todo
+        print ("COMMENT PERMALINK:",thing.permalink.encode("ascii", "xmlcharrefreplace").decode("ascii", "xmlcharrefreplace"))
         parentpermalink = thing.permalink.replace(thing.id, thing.parent_id[3:])
-        print ("PARENT PERMALINK:", parentpermalink)
+        print ("PARENT PERMALINK:", parentpermalink.encode("ascii", "xmlcharrefreplace").decode("ascii", "xmlcharrefreplace"))
         
         
         commentlinkid = thing.link_id[3:]
@@ -971,7 +987,7 @@ def eval_tip(thing):
                               "USD":"&#36;"}
     
     #get transaction_amount
-    if (tip_command_amount or tip_command_internet):
+    if (tip_command_amount or tip_command_vanitytip):
         #standardize
         if (tip_command_amount):
             tip_command_amount = tip_command_amount.lower()
@@ -996,7 +1012,7 @@ def eval_tip(thing):
                         break
                     
             print ("Sanitized amount command:", tip_command_amount)
-        if (tip_command_amount!="all" and tip_command_amount!="flip" and (not tip_command_internet)):
+        if (tip_command_amount!="all" and tip_command_amount!="flip" and (not tip_command_vanitytip)):
             #reduce duplicates
 
             for key in amount_symbol_list:
@@ -1052,9 +1068,12 @@ def eval_tip(thing):
             #print (_lastexchangeratefetched)
             #print (_lastexchangeratefetched[amount_code])
             #convert amount_value and amount_code to a bitcoin amount
-            transaction_amount = (amount_value/(Decimal(str(_lastexchangeratefetched[amount_code]))))
-            transaction_amount = round(transaction_amount, 8)
-            transaction_amount = Decimal(str(transaction_amount))
+            transaction_amount = (amount_value/(Decimal(str(_lastexchangeratefetched[amount_code]))))#
+
+            transaction_amount = round(transaction_amount, 8)#
+
+            transaction_amount = Decimal(str(transaction_amount))#
+
             
         elif (tip_command_all):
                 senderbalance = get_user_balance(transaction_from)
@@ -1085,25 +1104,35 @@ def eval_tip(thing):
             amount_symbol="&#3647;"
             amount_code="XBC"
             
-        elif (tip_command_internet):
+        elif (tip_command_vanitytip):
             if (get_user_gift_amount(transaction_from)>=1):
-                if ("s" in tip_command_internet.lower()):
-                    transaction_amount = Decimal('0.02')
-                    if (get_user_balance(transaction_from)<Decimal('0.0205')):
-                        cancelmessage = "You do not have 2 internets (&#3647;0.02) to give." #not sent to user
-                else:
-                    transaction_amount = Decimal('0.01')
-                    if (get_user_balance(transaction_from)<Decimal('0.0105')):
-                        cancelmessage = "You do not have an internet (&#3647;0.01) to give." #not sent to user
+                
+                #todo get amount from vanitytip
+                tipstringamount = regex_amount_amount.search(tip_command_vanitytip)
+                
+                tipstringamount = tipstringamount.groups()[0]
+                
+                #1 "point"/"internet"/"unit" is equal to 0.01 BTC
+                transaction_amount = (Decimal(tipstringamount)/Decimal('100'))
+            
+                if (get_user_balance(transaction_from)<(transaction_amount + _txfee)):
+                    cancelmessage = "You do not have enough." #not sent to user
+                    transaction_amount = Decimal('0')
             else:
                 #error: not donated enough 
-                cancelmessage = "You have not donated enough to use the +1 internet command." #not sent to user
+                cancelmessage = "You have not donated enough to use the special tipping commands." #not sent to user
                 transaction_amount = Decimal('0')
                 
             amount_value=transaction_amount
             amount_symbol="&#3647;"
             amount_code="XBC"
-        
+    else:
+        #no valid amount discernable
+        #pretend there's no tip.
+        print ("No valid amount. Missing units or other.")
+        return False
+
+
     ##check conditions to cancel the transaction and return error message
     if (transaction_amount<=Decimal('0') and (not tip_command_flip) and cancelmessage==""):
         cancelmessage = "You cannot send an amount of 0 or less."
@@ -1119,8 +1148,8 @@ def eval_tip(thing):
         cancelmessage="You cannot send any amount to yourself."
     elif (transaction_to == "" and cancelmessage==""):
         cancelmessage="You must specify a recipient username or bitcoin address."
-        
-    
+
+    # don't do tx if flipresult=0
     if (cancelmessage or (tip_command_flip and flipresult==0)):
         txid="error"
     else:
@@ -1144,6 +1173,10 @@ def eval_tip(thing):
         
     altcurrency_symbol = symbol_code_dictionary[altcurrency_code]
     altcurrency_amount = round(transaction_amount * (Decimal(str(_lastexchangeratefetched[altcurrency_code]))),2)
+    
+    #if address, shorten to first 7 chars for message reply.
+    if (bitcoind.validateaddress(transaction_to)['isvalid']):
+        transaction_to = transaction_to[:7]+"..."
 
     verifiedmessage = "[[**✔**](https://blockchain.info/tx/%s)] **Verified**: %s ---> &#3647;%s BTC (%s%s %s) ---> %s [[**?**](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/)]" % (txid, transaction_from, format_btc_amount(transaction_amount), altcurrency_symbol, format_fiat_amount(altcurrency_amount),altcurrency_code, transaction_to)
     rejectedmessage = "[**X**] **Rejected**:  ~~%s ---> &#3647;%s BTC (%s%s %s) ---> %s~~ [[**?**](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/)]" % (transaction_from, format_btc_amount(transaction_amount), altcurrency_symbol, format_fiat_amount(altcurrency_amount),altcurrency_code, transaction_to)
@@ -1153,7 +1186,7 @@ def eval_tip(thing):
         if (flipresult==1):
             flipmessage = "Bit landed **1** up. %s wins 1 bitcent.\n\n" % (transaction_to)
         if (flipresult==0):
-            flipmessage = "Bit landed **0** up. %s wins nothing.\n\n" % (transaction_to)
+            flipmessage = "Bit landed **0** up. %s wins nothing. [[**?**](http://www.reddit.com/r/bitcointip/comments/13iykn/bitcointip_documentation/)]\n\n" % (transaction_to)
             rejectedmessage=""
     else:
         flipmessage = ""
@@ -1162,7 +1195,7 @@ def eval_tip(thing):
     commentreplymessage=""
     #Reply to a comment under what conditions?
     #reply to a flip only if cancelmessage!="" 
-    #reply to a +1 internet only if it is a success
+    #reply to a vanitytip only if it is a success
     if ((tip_type == "comment") and ((tip_subreddit in _lastallowedsubredditsfetched) or (get_user_gift_amount(transaction_from)>=2)) and (tip_command_verify.lower()!="noverify")):
         #Reply to the comment
         if (flipresult!=-1):
@@ -1173,8 +1206,8 @@ def eval_tip(thing):
         else:
             commentreplymessage += rejectedmessage
 
-    #if failed +1 internet, don't send an annoying message.
-    if (tip_command_internet and cancelmessage):
+    #if failed vanitytip, don't send an annoying message.
+    if (tip_command_vanitytip and cancelmessage):
         commentreplymessage = ""
         
     if (commentreplymessage):
@@ -1184,10 +1217,10 @@ def eval_tip(thing):
         _mysqlcursor.execute(sql)
         _mysqlcon.commit()
         
-    
+    #TODOif 
     #Send a message to the sender under what conditions?
     #if flipping, only send a pm to sender if they don't have enough for a flip.
-    #if +1internet, do not send a pm to sender under any circumstance. (nonusers may use this without intent to tip, don't bother them)
+    #if vanitytip, do not send a pm to sender under any circumstance. (nonusers may use this without intent to tip, don't bother them)
     pmsendermessage=""
     if (cancelmessage!="" or tip_type=="message"):
         #PM the Sender
@@ -1202,7 +1235,7 @@ def eval_tip(thing):
         #add footer to PM
         pmsendermessage += get_footer(transaction_from)
 
-    if (tip_command_internet and cancelmessage):
+    if (tip_command_vanitytip and cancelmessage):
         pmsendermessage = ""
     
     if (pmsendermessage):
