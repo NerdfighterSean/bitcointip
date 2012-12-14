@@ -8,20 +8,20 @@ $comment_names = $_GET['comment_names'];
 
 //go through the array of comment_names and get the relevent data on each comment
 foreach ($comment_names as $value)
-{
-$result = mysql_query("SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE url='$value'", $con);
-while($row = mysql_fetch_array($result))
-  	{
-		$status = $row['status']; //completed, pending, reversed, cancelled
-		$sender = $row['sender_username']; 
-		$receiver = $row['receiver_username']; 
-		$amountBTC = $row['status']; 
-		$amountUSD = $row['status'];
-		$tx = "http://blockchain.info/tx/".$row['status'];
-		
-		$tips[$value] = array('status'=>$status, 'sender'=>$sender, 'receiver'=>$receiver, 'amountBTC'=>$amountBTC, 'amoundUSD'=>$amountUSD, 'tx'=>$tx);
+	{
+	$result = mysql_query("SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE url='$value'", $con);
+	while($row = mysql_fetch_array($result))
+  		{
+			$status = $row['status']; //completed, pending, reversed, cancelled
+			$sender = $row['sender_username']; 
+			$receiver = $row['receiver_username']; 
+			$amountBTC = $row['status']; 
+			$amountUSD = $row['status'];
+			$tx = "http://blockchain.info/tx/".$row['status'];
+			
+			$tips[$value] = array('status'=>$status, 'sender'=>$sender, 'receiver'=>$receiver, 'amountBTC'=>$amountBTC, 'amoundUSD'=>$amountUSD, 'tx'=>$tx);
 		}
-}
+	}
 
 echo $_GET['callback'] . '('.json_encode($tips).')';
 
