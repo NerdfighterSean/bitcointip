@@ -15,9 +15,9 @@ foreach ($comment_names as $value)
 			$status = $row['status']; //completed, pending, reversed, cancelled
 			$sender = $row['sender_username']; 
 			$receiver = $row['receiver_username']; 
-			$amountBTC = $row['status']; 
-			$amountUSD = $row['status'];
-			$tx = "http://blockchain.info/tx/".$row['status'];
+			$amountBTC = $row['amount_BTC']; 
+			$amountUSD = $row['amount_USD'];
+			$tx = "http://blockchain.info/tx/".$row['txid'];
 			
 			$tips[$value] = array('status'=>$status, 'sender'=>$sender, 'receiver'=>$receiver, 'amountBTC'=>$amountBTC, 'amoundUSD'=>$amountUSD, 'tx'=>$tx);
 		}
