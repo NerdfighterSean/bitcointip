@@ -28,6 +28,8 @@ require('init.php');
 $tips = split(",", $_GET['tips']);
 $callback = $_GET['callback'];
 
+$returntips = array();
+
 //go through the array of tip ids and get the relevent data on each one
 foreach ($tips as $key => $value)
 {
@@ -42,7 +44,8 @@ while($row = mysql_fetch_array($result))
 		$amountUSD = $row['amount_USD'];
 		$tx = "http://blockchain.info/tx/".$row['transaction_id'];
 		
-		$returntips[$key] = array('fullname'=>$fullname, 'status'=>$status, 'sender'=>$sender, 'receiver'=>$receiver, 'amountBTC'=>$amountBTC, 'amountUSD'=>$amountUSD, 'tx'=>$tx);
+		
+		array_push($returntips,array('fullname'=>$fullname, 'status'=>$status, 'sender'=>$sender, 'receiver'=>$receiver, 'amountBTC'=>$amountBTC, 'amountUSD'=>$amountUSD, 'tx'=>$tx));
 		}
 }
 
