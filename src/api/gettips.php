@@ -18,15 +18,14 @@ tx : url to the transaction ("http:\/\/blockchain.info\/tx\/49d7e88a5434cdb8bef7
 example: http://bitcointip.net/api/gettips.php?callback=fff&tips=c7h194m,c7h2doo,c7h1wst
 */
 
-
 header('content-type: application/json; charset=utf-8');
 
 //connect to database
 require('init.php');
 
 //get variables
-$tips = split(",", $_GET['tips']);
-$callback = $_GET['callback'];
+$tips = split(",", mysql_real_escape_string($_GET['tips']));
+$callback = mysql_real_escape_string($_GET['callback']);
 
 $returntips = array();
 
@@ -50,7 +49,4 @@ while($row = mysql_fetch_array($result))
 }
 
 echo $callback . '('.json_encode($returntips).')';
-
-
-
 ?>
