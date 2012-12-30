@@ -38,7 +38,7 @@ while($row = mysql_fetch_array($result))
 		$amountUSD = $row['amount_USD'];
 
 
-		array_push($returntipped, array('fullname'=>$fullname, 'tipQTY'=>$tipQTY, 'amountBTC'=>$amountBTC, 'amountUSD'=>$amountUSD));
+		array_push($returntipped, array('fullname'=>$fullname, 'tipQTY'=>intval($tipQTY), 'amountBTC'=>$amountBTC, 'amountUSD'=>$amountUSD));
 		}
 }
 
