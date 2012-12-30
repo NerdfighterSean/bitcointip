@@ -32,7 +32,7 @@ $returntips = array();
 //go through the array of tip ids and get the relevent data on each one
 foreach ($tips as $key => $value)
 {
-$result = mysql_query("SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE url='t1_$value'", $con);
+$result = mysql_query("SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE url LIKE 't%\_$value'", $con);
 while($row = mysql_fetch_array($result))
 		{
 		$fullname = $row['url'];
@@ -42,8 +42,8 @@ while($row = mysql_fetch_array($result))
 		$amountBTC = $row['amount_BTC'];
 		$amountUSD = $row['amount_USD'];
 		$tx = "http://blockchain.info/tx/".$row['transaction_id'];
-		
-		
+
+
 		array_push($returntips,array('fullname'=>$fullname, 'status'=>$status, 'sender'=>$sender, 'receiver'=>$receiver, 'amountBTC'=>$amountBTC, 'amountUSD'=>$amountUSD, 'tx'=>$tx));
 		}
 }
