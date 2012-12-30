@@ -4,13 +4,13 @@ gettipped.php
 
 Parameters:
 callback : the callback function name ("fff")
-comments : comma separated list of comment ids ("c7ny177,c7hxeas")
+tipped : comma separated list of comment ids ("c7ny177,c7hxeas")
 
 Response: Array of JSON objects that correspond to each input comment/post (if it exists)
 fullname : fullname of the comment/post ("t1_c7ny177") (could be "t3_xxxxx" for a post)
 tipQTY : number of contributors ("3")
 amountBTC : total amount of BTC tipped ("0.01")
-amoundUSD : total amount of USD tipped ("0.14") (based on cost to tipper at time of tip)
+amountUSD : total amount of USD tipped ("0.14") (based on cost to tipper at time of tip)
 
 example: http://bitcointip.net/api/gettipped.php?callback=fff&tipped=c7hxeas,c7ny177
 */
