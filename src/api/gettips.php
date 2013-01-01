@@ -6,14 +6,20 @@ Parameters:
 callback : the callback function name ("fff")
 tips : comma separated list of comment ids ("c7h194m,c7h2doo,c7h1wst")
 
-Response: Array of JSON objects that correspond to each input tip (if it exists)
-fullname : fullname of the comment ("t1_c7h194m")
-status : ("pending", "completed", "reversed", or "cancelled")
-sender : "TheDJFC"
-receiver : "drewdtom"
-amountBTC : "0.01"
-amoundUSD : "0.14"
-tx : url to the transaction ("http:\/\/blockchain.info\/tx\/49d7e88a5434cdb8bef71ed404e235be73a15a8a3c391611c939265ad245e166")
+Response:
+{
+	"tips":
+		{
+		"fullname" : "t1_c7h194m" (fullname of the comment)
+		"status" : "pending", "completed", "reversed", or "cancelled"
+		"sender" : "TheDJFC"
+		"receiver" : "drewdtom"
+		"amountBTC" : "0.01"
+		"amountUSD" : "0.14"
+		"tx" : "http:\/\/blockchain.info\/tx\/49d7e88a5434cdb8bef71ed404e235be73a15a8a3c391611c939265ad245e166" (url to the transaction)
+		}
+	"last_evaluated": 1357077962 (integer timestamp of the last comment evaluated.)
+}
 
 example: http://bitcointip.net/api/gettips.php?callback=fff&tips=c7h194m,c7h2doo,c7h1wst
 */
@@ -27,7 +33,15 @@ require('init.php');
 $tips = split(",", mysql_real_escape_string($_GET['tips']));
 $callback = mysql_real_escape_string($_GET['callback']);
 
+$returnpackage = array();
 $returntips = array();
+$returnlastevaluated = 0;
+
+$result = mysql_query("SELECT * FROM TEST_TABLE_RECENT WHERE type='lastcommentevaluated'", $con);
+while($row = mysql_fetch_array($result))
+		{
+		$returnlast_evaluated = $row['timestamp'];
+		}
 
 //go through the array of tip ids and get the relevent data on each one
 foreach ($tips as $key => $value)
@@ -44,9 +58,12 @@ while($row = mysql_fetch_array($result))
 		$tx = "http://blockchain.info/tx/".$row['transaction_id'];
 
 
-		array_push($returntips,array('fullname'=>$fullname, 'status'=>$status, 'sender'=>$sender, 'receiver'=>$receiver, 'amountBTC'=>$amountBTC, 'amountUSD'=>$amountUSD, 'tx'=>$tx));
+		array_push($returntips, array('fullname'=>$fullname, 'status'=>$status, 'sender'=>$sender, 'receiver'=>$receiver, 'amountBTC'=>$amountBTC, 'amountUSD'=>$amountUSD, 'tx'=>$tx));
 		}
 }
 
-echo $callback . '('.json_encode($returntips).')';
+$returnpackage["tips"] = $returntips;
+$returnpackage["last_evaluated"] = intval($returnlast_evaluated);
+
+echo $callback . '('.json_encode($returnpackage).')';
 ?>
