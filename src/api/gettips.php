@@ -3,7 +3,7 @@
 gettips.php
 
 Parameters:
-callback : the callback function name ("fff")
+callback : the callback function name ("fff")  (if defined returns JSONP, else returns JSON)
 tips : comma separated list of comment ids ("c7h194m,c7h2doo,c7h1wst")
 
 Response:
@@ -21,10 +21,12 @@ Response:
 	"last_evaluated": 1357077962 (integer timestamp of the last comment evaluated.)
 }
 
-example: http://bitcointip.net/api/gettips.php?callback=fff&tips=c7h194m,c7h2doo,c7h1wst
+JSON example: http://bitcointip.net/api/gettips.php?tips=c7h194m,c7h2doo,c7h1wst
+JSONP example: http://bitcointip.net/api/gettips.php?callback=fff&tips=c7h194m,c7h2doo,c7h1wst
 */
 
 header('content-type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
 
 //connect to database
 require('init.php');
@@ -65,5 +67,12 @@ while($row = mysql_fetch_array($result))
 $returnpackage["tips"] = $returntips;
 $returnpackage["last_evaluated"] = intval($returnlast_evaluated);
 
-echo $callback . '('.json_encode($returnpackage).')';
+if ($callback!="")
+	{
+	echo $callback . '('.json_encode($returnpackage).')';
+	}
+else
+	{
+	echo json_encode($returnpackage);
+	}
 ?>
