@@ -11,6 +11,11 @@ Response:
 "address" : bitcoin address associated with user "username"
 "balanceBTC" : the BTC balance of "address"
 "balanceUSD" : the USD balance of "address"
+"balanceAUD" : the AUD balance of "address"
+"balanceCAD" : the CAD balance of "address"
+"balanceJPY" : the JPY balance of "address"
+"balanceGBP" : the GBP balance of "address"
+"balanceEUR" : the EUR balance of "address"
 
 If the given address does not belong to the given user, an empty array will be returned.
 */
@@ -48,8 +53,13 @@ while($row = mysql_fetch_array($result))
 		$username = $row['username'];
 		$address = $row['address'];
 		$balanceUSD = round($balanceBTC*$rates['USD'],2);
+		$balanceAUD = round($balanceBTC*$rates['AUD'],2);
+		$balanceCAD = round($balanceBTC*$rates['CAD'],2);
+		$balanceJPY = round($balanceBTC*$rates['JPY'],0);
+		$balanceGBP = round($balanceBTC*$rates['GBP'],2);
+		$balanceEUR = round($balanceBTC*$rates['EUR'],2);
 
-		$returnpackage = array('username'=>$username, 'address'=>$address, 'balanceBTC'=>$balanceBTC, 'balanceUSD'=>$balanceUSD);
+		$returnpackage = array('username'=>$username, 'address'=>$address, 'balanceBTC'=>$balanceBTC, 'balanceUSD'=>$balanceUSD, 'balanceAUD'=>$balanceAUD, 'balanceCAD'=>$balanceCAD, 'balanceJPY'=>$balanceJPY, 'balanceGBP'=>$balanceGBP, 'balanceEUR'=>$balanceEUR);
 		}
 		
 echo json_encode($returnpackage);
