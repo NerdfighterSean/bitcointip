@@ -26,7 +26,7 @@ header('Access-Control-Allow-Origin: *');
 //have the user keep their balance cached for an hour.
 $expirationage = 60*60*1;
 $expirationdate = time()+$expirationage;
-Header("Cache-Control: max-age=".$expirationage." must-revalidate");
+Header("Cache-Control: max-age=".$expirationage.", must-revalidate");
 Header("Expires: " . gmdate("D, d M Y H:i:s", $expirationdate) . " GMT");
 
 //connect to database

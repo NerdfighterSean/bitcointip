@@ -13,7 +13,7 @@ header('Access-Control-Allow-Origin: *');
 //Have the user keep the subreddit list cached for a day.
 $expirationage = 60*60*24*1;
 $expirationdate = time()+$expirationage;
-Header("Cache-Control: max-age=".$expirationage." must-revalidate");
+Header("Cache-Control: max-age=".$expirationage.", must-revalidate");
 Header("Expires: " . gmdate("D, d M Y H:i:s", $expirationdate) . " GMT");
 
 //connect to database
