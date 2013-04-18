@@ -13,5 +13,6 @@ bitcoind-walletpass : verysecurepass1234
 reddit-username : mybitcointipuser
 reddit-pass : randompass1234
 reddit-useragent : mybitcointipuser
+reddit-botsubreddit : mybitcointipsubreddit
 
 admin-email : admin@example.com

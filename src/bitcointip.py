@@ -144,7 +144,7 @@ def refresh_friends():
     global _lastfriendsofbitcointipfetched
     global _lastfriendsofbitcointipfetchedtime
     _lastfriendsofbitcointipfetched = []
-    bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
+    bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
     bitcointipfriends = bitcointipsubreddit.flair_list()
     for x in bitcointipfriends:
         if (x['flair_css_class']=="bitcoin"):
@@ -164,7 +164,7 @@ def refresh_user_flair():
     _mysqlexecute = _mysqlsession.execute(sql)
     results = _mysqlexecute.fetchall()
 
-    bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
+    bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
     for row in results:
         username = row[1]
         giftamount = Decimal(row[5])
@@ -197,7 +197,7 @@ def refresh_banned_users():
     global _lastbannedusersfetched
     global _lastbannedusersfetchedtime
     _lastbannedusersfetched = []
-    bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
+    bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
     bitcointipbanned = bitcointipsubreddit.get_banned()
     for x in bitcointipbanned:
         _lastbannedusersfetched.append(x.name.lower())
@@ -442,7 +442,7 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
             _mysqlexecute = _mysqlsession.execute(sql)
             __mysqlsession.commit()
             
-            bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
+            bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
             #based on newgiftamount, set flair and make friend if applicable
             if (newgiftamount>=Decimal('2')):
                 #bitcoin level
@@ -2065,6 +2065,7 @@ _jsonRPCClientString = "http://" + _BITCOINDlogin + ":" + _BITCOINDpass + "@" + 
 _REDDITbotusername = _SETTINGS['reddit-username']
 _REDDITbotpassword = _SETTINGS['reddit-pass']
 _REDDITuseragent = _SETTINGS['reddit-useragent']
+_REDDITbotsubreddit = _SETTINGS['reddit-botsubreddit']
 
 _adminemail = _SETTINGS['admin-email']
 
