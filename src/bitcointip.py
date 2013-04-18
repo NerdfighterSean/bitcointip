@@ -23,8 +23,8 @@ import time
 import btctip.db
 from sqlalchemy.orm import sessionmaker
 
-#datastring = urllib.request.urlopen(url).read()
-import urllib
+#datastring = urllib2.urlopen(url).read()
+import urllib2
 
 #jsonarray = json.loads(jsonstring)
 #jsonstring = json.dumps(jsonarray)
@@ -225,9 +225,7 @@ def refresh_exchange_rate():
     #else if the timestamp is over updatetime hours old, update the exchangerates
     else:
         url = "http://bitcoincharts.com/t/markets.json"
-        file = urllib.request.urlopen(url)
-        encoding = file.headers.get_content_charset()
-        content =file.readall().decode(encoding)
+        content = urllib2.urlopen(url).read()
         jsondata = json.loads(content)
 
         for row in jsondata:
@@ -1580,8 +1578,8 @@ def find_message_command(message): #array
                 print ("url",url)
 
 
-                req = urllib.request.Request(url)
-                file = urllib.request.urlopen(req)
+                req = urllib2.Request(url)
+                file = urllib2.urlopen(req)
 
                 encoding = file.headers.get_content_charset()
                 content = file.readall().decode(encoding)
