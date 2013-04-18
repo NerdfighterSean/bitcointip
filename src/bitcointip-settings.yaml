@@ -1,0 +1,18 @@
+mysql-user : btctip1
+mysql-pass : btctip1
+mysql-host : localhost
+mysql-port : 3306
+mysql-db: btctip1
+
+bitcoind-rpclogin : litecoinrpc
+bitcoind-rpcpass : 2RzhERf1CczRPDBszXXaCVnFqYTYpe448Q1bAPUUFmeP
+bitcoind-rpchost : localhost
+bitcoind-rpcport : 9332
+bitcoind-walletpass : tipbot1
+
+reddit-username : cointipbot
+reddit-pass : cointipbot8332
+reddit-useragent : cointipbot
+reddit-botsubreddit : cointipbot
+
+admin-email : me@thedimi.net

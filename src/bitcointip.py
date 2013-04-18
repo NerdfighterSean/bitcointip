@@ -129,9 +129,10 @@ def refresh_allowed_subreddits():
     global _lastallowedsubredditsfetched
     global _lastallowedsubredditsfetchedtime
     _lastallowedsubredditsfetched = []
-    getreddits = _SETTINGS['reddit-watchsubreddits']
+    #getreddits = _SETTINGS['reddit-watchsubreddits']
+    getreddits = _reddit.get_my_reddits()
     for subreddit in getreddits:
-        _lastallowedsubredditsfetched.append(_reddit.get_subreddit(subreddit).display_name.lower())
+        _lastallowedsubredditsfetched.append(subreddit.display_name.lower())
     print ("Retrieved from REDDIT allowed subreddits:", _lastallowedsubredditsfetched)
     _lastallowedsubredditsfetchedtime = round(time.time())
     set_last_time("lastallowedsubredditsfetchedtime",_lastallowedsubredditsfetchedtime)
