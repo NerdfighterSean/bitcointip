@@ -14,5 +14,6 @@ reddit-username : mybitcointipuser
 reddit-pass : randompass1234
 reddit-useragent : mybitcointipuser
 reddit-botsubreddit : mybitcointipsubreddit
+reddit-watchsubreddits : [ 'subreddit1', 'subreddit2' ]
 
 admin-email : admin@example.com

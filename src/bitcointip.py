@@ -129,13 +129,13 @@ def refresh_allowed_subreddits():
     global _lastallowedsubredditsfetched
     global _lastallowedsubredditsfetchedtime
     _lastallowedsubredditsfetched = []
-    getreddits = _reddit.user.my_reddits()
+    getreddits = _SETTINGS['reddit-watchsubreddits']
     for subreddit in getreddits:
-        _lastallowedsubredditsfetched.append(subreddit.display_name.lower())
+        _lastallowedsubredditsfetched.append(_reddit.get_subreddit(subreddit).display_name.lower())
     print ("Retrieved from REDDIT allowed subreddits:", _lastallowedsubredditsfetched)
     _lastallowedsubredditsfetchedtime = round(time.time())
     set_last_time("lastallowedsubredditsfetchedtime",_lastallowedsubredditsfetchedtime)
-    set_last_time("lastallowedsubredditsfetched",json.dumps(_lastallowedsubredditsfetched))
+    #set_last_time("lastallowedsubredditsfetched",json.dumps(_lastallowedsubredditsfetched))
 
         
         
@@ -145,14 +145,14 @@ def refresh_friends():
     global _lastfriendsofbitcointipfetchedtime
     _lastfriendsofbitcointipfetched = []
     bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
-    bitcointipfriends = bitcointipsubreddit.flair_list()
+    bitcointipfriends = bitcointipsubreddit.get_flair_list()
     for x in bitcointipfriends:
         if (x['flair_css_class']=="bitcoin"):
             _lastfriendsofbitcointipfetched.append(x['user'].lower())
     print ("Retrieved from REDDIT friends of bitcointip:", _lastfriendsofbitcointipfetched)
     _lastfriendsofbitcointipfetchedtime = round(time.time())
     set_last_time("lastfriendsofbitcointipfetchedtime", _lastfriendsofbitcointipfetchedtime)
-    set_last_time("lastfriendsofbitcointipfetched", json.dumps(_lastfriendsofbitcointipfetched))
+    #set_last_time("lastfriendsofbitcointipfetched", json.dumps(_lastfriendsofbitcointipfetched))
 
 
 #refresh user flair on the bitcointip subreddit
@@ -204,7 +204,7 @@ def refresh_banned_users():
     print ("Retrieved from REDDIT banned users:", _lastbannedusersfetched)
     _lastbannedusersfetchedtime = round(time.time())
     set_last_time("lastbannedusersfetchedtime", _lastbannedusersfetchedtime)
-    set_last_time("lastbannedusersfetched", json.dumps(_lastbannedusersfetched))
+    #set_last_time("lastbannedusersfetched", json.dumps(_lastbannedusersfetched))
 
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
 #USD,AUD,CAD,EUR,JPY,GBP
@@ -238,7 +238,7 @@ def refresh_exchange_rate():
                     print ("Exchangerate '" + symbol + "' updated to " + str(_lastexchangeratefetched[symbol]))
         _lastexchangeratefetchedtime = round(time.time())
         set_last_time("lastexchangeratefetchedtime", _lastexchangeratefetchedtime)
-        set_last_time("lastexchangeratefetched", json.dumps(_lastexchangeratefetched))
+        #set_last_time("lastexchangeratefetched", json.dumps(_lastexchangeratefetched))
 
 
 #addUser    
