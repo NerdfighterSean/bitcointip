@@ -1,6 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 
-import argparse
+import yaml
 
 from decimal import Decimal
 
@@ -1994,53 +1994,14 @@ def submit_messages():
                 
                     
 
+def exitexception(e):
+    print ("Error ", e)
+    bitcoind.walletlock()
+    #backup_database()
+    #backup_wallet()
+    #notify_admin()
+    exit(1)
 
-def exitpeacefully(e):
-    print ("Exiting Peacefully")
-    
-    #LOCK BITCOIND WALLET AT PROGRAM END
-    print ("Locking Bitcoin Wallet")
-    print (bitcoind.walletlock())
-    print ("Error",e)
-    #The bot has had a problem and quit. Email the admin for help:
-    errorstring = ("Error, the bot has stopped running!\n\n\nException:",str(e))
-    print ("Emailing Admin")
-    #email admin alert
-    emailcommand = 'echo "The bot has stopped.\n\n Error:\n\n" | mutt -s "ALERT: BOT HAS STOPPED" -- root '+_adminemail
-    print (emailcommand)
-    result = subprocess.call(emailcommand, shell=True)
-    
-    #then back up the wallet:
-    datetime = time.strftime("%a_%Y-%b-%d_%H:%M:%S", time.gmtime())
-    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet_%s.dat" % (datetime))
-    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet.dat")
-    print ("Backed up wallet")
-
-    #then backup the mysql database:
-    backupmysqlcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db.sql"
-    backupmysqldatedcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db_`date +%a_%Y-%b-%d_%H:%M:%S`.sql"
-    result = subprocess.call(backupmysqlcommand, shell=True)
-    result = subprocess.call(backupmysqldatedcommand, shell=True)
-    print ("Backed up mysql db")
-    exit(0)
-
-    
-def createbackups():
-    #back up the wallet:
-    datetime = time.strftime("%a_%Y-%b-%d_%H:%M:%S", time.gmtime())
-    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet_%s.dat" % (datetime))
-    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet.dat")
-    print ("Backed up wallet")
-
-    #then backup the mysql database:
-    backupmysqlcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db.sql"
-    backupmysqldatedcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db_`date +%a_%Y-%b-%d_%H:%M:%S`.sql"
-    result = subprocess.call(backupmysqlcommand, shell=True)
-    result = subprocess.call(backupmysqldatedcommand, shell=True)
-    print ("Backed up mysql db")
-    _lastbackuptime = round(time.time())
-    set_last_time("lastbackuptime", _lastbackuptime)
-	
 	
 def main():
         
@@ -2078,46 +2039,33 @@ def main():
         createbackups()
 
 
-
-
-argument_parser = argparse.ArgumentParser(
-  description = "Runs the Bitcointip bot",
-)
-argument_parser.add_argument(
-  'bitcoind_second_password',
-  metavar='PASSWORD',
-  type=str,
-  help="bitcoind's second password to unlock the wallet",
-)
-argument_parser.add_argument(
-  'dsn_url',
-  metavar='DATABASE_URL',
-  type=str,
-  help="Database URL (like 'sqlite:///bitcointip.db') conforming to http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html",
-)
-cmdline_args = argument_parser.parse_args()
-
 ######################################################################
 #MAIN
 ######################################################################
-#DETAILS:
-_MYSQLhost = "???"
-_MYSQLlogin = "???"
-_MYSQLpass = "???"
-_MYSQLdbname = "???"
-_MYSQLport = "???"
 
-_BITCOINDlogin = "???"
-_BITCOINDpass = "???"
-_BITCOINDip = "???"
-_BITCOINDport = "???"
-_BITCOINDsecondpass = cmdline_args.bitcoind_second_password
+# Fetch configuration from YAML file
 
-_REDDITbotusername = "???"
-_REDDITbotpassword = "???"
-_REDDITuseragent = "???"
+_SETTINGS = yaml.load(open("bitcointip-settings.yaml"))
 
-_adminemail = "???"
+_MYSQLhost = _SETTINGS['mysql-host']
+_MYSQLlogin = _SETTINGS['mysql-user']
+_MYSQLpass = _SETTINGS['mysql-pass']
+_MYSQLport = _SETTINGS['mysql-port']
+_MYSQLdbname = _SETTINGS['mysql-db']
+_MYSQLdsn = "mysql+mysqldb://" + _MYSQLlogin + ":" + _MYSQLpass + "@" + _MYSQLhost + "/" + _MYSQLdbname
+
+_BITCOINDlogin = _SETTINGS['bitcoind-rpclogin']
+_BITCOINDpass = _SETTINGS['bitcoind-rpcpass']
+_BITCOINDip = _SETTINGS['bitcoind-rpchost']
+_BITCOINDport = _SETTINGS['bitcoind-rpcport']
+_BITCOINDsecondpass = _SETTINGS['bitcoind-walletpass']
+_jsonRPCClientString = "http://" + _BITCOINDlogin + ":" + _BITCOINDpass + "@" + _BITCOINDip + ":" + str(_BITCOINDport) + "/"
+
+_REDDITbotusername = _SETTINGS['reddit-username']
+_REDDITbotpassword = _SETTINGS['reddit-pass']
+_REDDITuseragent = _SETTINGS['reddit-useragent']
+
+_adminemail = _SETTINGS['admin-email']
 
 
 # BOTSTATUS (DOWN/UP)
@@ -2137,25 +2085,25 @@ _intervalpendingnotify = 60*60*24*7
 
 # CONNECT TO MYSQL DATABASE
 try:
-    dsn_url = cmdline_args.dsn_url
-    databaseobject = btctip.db.BitcointipDatabase(dsn_url)
+    print "Connecting to " + _MYSQLdsn
+    databaseobject = btctip.db.BitcointipDatabase(_MYSQLdsn)
     _mysqlcon = databaseobject.connect()
     _mysqlcursor = _mysqlcon
     print ("Connected to database.")
 except Exception as e:
-    exitpeacefully(e)
+    exitexception(e)
 
 
 
 # CONNECT TO BITCOIND SERVER
 try:
-    _jsonRPCClientString = "http://"+_BITCOINDlogin+":"+_BITCOINDpass+"@"+_BITCOINDip+":"+_BITCOINDport+"/"
+    print "Connecting to " + _jsonRPCClientString
     bitcoind.access = ServiceProxy(_jsonRPCClientString)
     print("Connected to BITCOIND.")
     if (bitcoind.getinfo()=="error"):
-        exitpeacefully("error")
+        exitexception("bitcoind.getinfo()")
 except Exception as e:
-    exitpeacefully(e)
+    exitexception(e)
 
 
     
@@ -2165,7 +2113,7 @@ try:
     _reddit.login(_REDDITbotusername, _REDDITbotpassword)
     print("Connected to REDDIT.")
 except Exception as e:
-    exitpeacefully(e)
+    exitexception(e)
 
 
 #TIMINGS
@@ -2267,7 +2215,7 @@ while (True):
         if (str(e)=="HTTP Error 504: Gateway Time-out" or str(e)=="timed out"):
             _sleeptime = round(_sleeptime*2)
         else:
-            exitpeacefully(e)
+            exitexception(e)
 
     #if sleeping for a long time, email admin.
     if (_sleeptime>=(10*60)):
