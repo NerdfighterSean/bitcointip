@@ -164,3 +164,4 @@ pip-log.txt
 
 # My stuff
 bitcointip-settings.yaml
+*.pyc
