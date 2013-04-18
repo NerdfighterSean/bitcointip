@@ -1817,7 +1817,7 @@ def eval_messages():
     #get some unread messages.
     newest_message_evaluated_time = 0
     
-    unread_messages = _reddit.user.get_unread(limit=1000)
+    unread_messages = _reddit.get_unread(limit=1000)
     for message in unread_messages:
         if (not message.was_comment):
             #ignore self messages and bannedusers messages/comments
@@ -1996,10 +1996,23 @@ def submit_messages():
 def exitexception(e):
     print ("Error ", e)
     bitcoind.walletlock()
-    #backup_database()
-    #backup_wallet()
+    backup_database()
+    backup_wallet()
     #notify_admin()
     exit(1)
+
+
+def createbackups():
+    backup_database()
+    backup_wallet()
+
+
+def backup_database():
+    print "Backing up database..."
+
+
+def backup_wallet():
+    print "Backing up wallet..."
 
 	
 def main():
