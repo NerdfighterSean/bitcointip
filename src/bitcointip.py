@@ -1,6 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 
-import argparse
+import yaml
 
 from decimal import Decimal
 
@@ -21,9 +21,10 @@ import time
 
 #database stuff
 import btctip.db
+from sqlalchemy.orm import sessionmaker
 
-#datastring = urllib.request.urlopen(url).read()
-import urllib
+#datastring = urllib2.urlopen(url).read()
+import urllib2
 
 #jsonarray = json.loads(jsonstring)
 #jsonstring = json.dumps(jsonarray)
@@ -83,30 +84,30 @@ def set_last_time(thingtype, value):
     entryexists = False
     
     sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='%s'" % (thingtype)
-    _mysqlcursor.execute(sql)
-    results = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    results = _mysqlexecute.fetchall()
     for row in results:
         entryexists = True
     
     if (entryexists):
         #update username's lastactive time
         sql = "UPDATE TEST_TABLE_RECENT SET timestamp='%s' WHERE type='%s'" % (str(value), thingtype)
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        _mysqlsession.commit()
         print("Updated to MYSQL %s : %s" % (thingtype, str(value)))
     else:
         #insert username's lastactive time
         sql = "INSERT INTO TEST_TABLE_RECENT (type, timestamp) VALUES ('%s', '%s')" % (thingtype, str(value))
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        __mysqlsession.commit()
         print("Inserted to MYSQL %s : %s" % (thingtype, str(value)))
 
 def get_last_time(thingtype):
     #return a timestamp
     value = 0
     sql = "SELECT * FROM TEST_TABLE_RECENT WHERE type='%s'" % (thingtype)
-    _mysqlcursor.execute(sql)
-    results = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    results = _mysqlexecute.fetchall()
     for row in results:
         value = row[1]
     print ("Retrieved from MYSQL %s : %s" % (thingtype, str(value)))
@@ -128,13 +129,14 @@ def refresh_allowed_subreddits():
     global _lastallowedsubredditsfetched
     global _lastallowedsubredditsfetchedtime
     _lastallowedsubredditsfetched = []
-    getreddits = _reddit.user.my_reddits()
+    #getreddits = _SETTINGS['reddit-watchsubreddits']
+    getreddits = _reddit.get_my_reddits()
     for subreddit in getreddits:
         _lastallowedsubredditsfetched.append(subreddit.display_name.lower())
     print ("Retrieved from REDDIT allowed subreddits:", _lastallowedsubredditsfetched)
     _lastallowedsubredditsfetchedtime = round(time.time())
     set_last_time("lastallowedsubredditsfetchedtime",_lastallowedsubredditsfetchedtime)
-    set_last_time("lastallowedsubredditsfetched",json.dumps(_lastallowedsubredditsfetched))
+    #set_last_time("lastallowedsubredditsfetched",json.dumps(_lastallowedsubredditsfetched))
 
         
         
@@ -143,15 +145,15 @@ def refresh_friends():
     global _lastfriendsofbitcointipfetched
     global _lastfriendsofbitcointipfetchedtime
     _lastfriendsofbitcointipfetched = []
-    bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
-    bitcointipfriends = bitcointipsubreddit.flair_list()
+    bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
+    bitcointipfriends = bitcointipsubreddit.get_flair_list()
     for x in bitcointipfriends:
         if (x['flair_css_class']=="bitcoin"):
             _lastfriendsofbitcointipfetched.append(x['user'].lower())
     print ("Retrieved from REDDIT friends of bitcointip:", _lastfriendsofbitcointipfetched)
     _lastfriendsofbitcointipfetchedtime = round(time.time())
     set_last_time("lastfriendsofbitcointipfetchedtime", _lastfriendsofbitcointipfetchedtime)
-    set_last_time("lastfriendsofbitcointipfetched", json.dumps(_lastfriendsofbitcointipfetched))
+    #set_last_time("lastfriendsofbitcointipfetched", json.dumps(_lastfriendsofbitcointipfetched))
 
 
 #refresh user flair on the bitcointip subreddit
@@ -160,10 +162,10 @@ def refresh_user_flair():
     print ("Refreshing User Flair")
     
     sql = "SELECT * FROM TEST_TABLE_USERS WHERE giftamount>0"
-    _mysqlcursor.execute(sql)
-    results = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    results = _mysqlexecute.fetchall()
 
-    bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
+    bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
     for row in results:
         username = row[1]
         giftamount = Decimal(row[5])
@@ -196,14 +198,14 @@ def refresh_banned_users():
     global _lastbannedusersfetched
     global _lastbannedusersfetchedtime
     _lastbannedusersfetched = []
-    bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
+    bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
     bitcointipbanned = bitcointipsubreddit.get_banned()
     for x in bitcointipbanned:
         _lastbannedusersfetched.append(x.name.lower())
     print ("Retrieved from REDDIT banned users:", _lastbannedusersfetched)
     _lastbannedusersfetchedtime = round(time.time())
     set_last_time("lastbannedusersfetchedtime", _lastbannedusersfetchedtime)
-    set_last_time("lastbannedusersfetched", json.dumps(_lastbannedusersfetched))
+    #set_last_time("lastbannedusersfetched", json.dumps(_lastbannedusersfetched))
 
 # GET THE EXCHANGE RATE FROM bitcoincharts.com
 #USD,AUD,CAD,EUR,JPY,GBP
@@ -224,9 +226,7 @@ def refresh_exchange_rate():
     #else if the timestamp is over updatetime hours old, update the exchangerates
     else:
         url = "http://bitcoincharts.com/t/markets.json"
-        file = urllib.request.urlopen(url)
-        encoding = file.headers.get_content_charset()
-        content =file.readall().decode(encoding)
+        content = urllib2.urlopen(url).read()
         jsondata = json.loads(content)
 
         for row in jsondata:
@@ -237,7 +237,7 @@ def refresh_exchange_rate():
                     print ("Exchangerate '" + symbol + "' updated to " + str(_lastexchangeratefetched[symbol]))
         _lastexchangeratefetchedtime = round(time.time())
         set_last_time("lastexchangeratefetchedtime", _lastexchangeratefetchedtime)
-        set_last_time("lastexchangeratefetched", json.dumps(_lastexchangeratefetched))
+        #set_last_time("lastexchangeratefetched", json.dumps(_lastexchangeratefetched))
 
 
 #addUser    
@@ -247,8 +247,8 @@ def add_user(username):
     #check to see if user already exists.
     useralreadyexists = False
     sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (username)
-    _mysqlcursor.execute(sql)
-    results = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    results = _mysqlexecute.fetchall()
     for row in results:
         useralreadyexists = True
 
@@ -261,8 +261,8 @@ def add_user(username):
         else:
             #add them to TABLE_USERS
             sql = "INSERT INTO TEST_TABLE_USERS (user_id, username, address, balance, datejoined) VALUES ('%s', '%s', '%s', '%s', '%f')" % (None, username, newuseraddress, format_btc_amount(Decimal('0.00000000')), round(time.time()))
-            _mysqlcursor.execute(sql)
-            _mysqlcon.commit()
+            _mysqlexecute = _mysqlsession.execute(sql)
+            __mysqlsession.commit()
             print ("User (%s) added with address (%s)" % (username, newuseraddress))
 
 
@@ -297,8 +297,8 @@ def get_user_address(username):
     sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (username)
 
     useraddress = "error"
-    _mysqlcursor.execute(sql)
-    results = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    results = _mysqlexecute.fetchall()
     for row in results:
         useraddress = row[2]
 
@@ -322,8 +322,8 @@ def get_user_gift_amount(username):
 
     sql = "SELECT * FROM TEST_TABLE_USERS WHERE username='%s'" % (username)
 
-    _mysqlcursor.execute(sql)
-    results = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    results = _mysqlexecute.fetchall()
     for row in results:
         giftamount = Decimal(row[5])
         return giftamount
@@ -345,8 +345,8 @@ def has_user_redeemed_karma(username):
 
     alreadyredeemed = False
     sql = "SELECT * FROM TEST_TABLE_FAUCET_PAYOUTS WHERE username='%s'" % (username)
-    _mysqlcursor.execute(sql)
-    results = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    results = _mysqlexecute.fetchall()
     for row in results:
         alreadyredeemed = True
         
@@ -363,8 +363,8 @@ def has_user_redeemed_karma(username):
 def does_transaction_exist(sender, receiver, timestamp):
 
     sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE sender_username='%s' AND receiver_username='%s' AND timestamp='%f'" % (sender, receiver, timestamp)
-    _mysqlcursor.execute(sql)
-    results = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    results = _mysqlexecute.fetchall()
     for row in results:
         #transaction already processed
         return True
@@ -429,8 +429,8 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
         
         #do a transaction from sender to reciever for amount. put into TABLE_TRANSACTIONS
         sql = "INSERT INTO TEST_TABLE_TRANSACTIONS (transaction_id, sender_username, sender_address, receiver_username, receiver_address, amount_BTC, amount_USD, type, url, subreddit, timestamp, verify, statusmessage, status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%s', '%s')" % (txid, transaction_from, transaction_from, transaction_to, transaction_to, format_btc_amount(transaction_amount), format_fiat_amount(round(transaction_amount*Decimal(str(_lastexchangeratefetched['USD'])),2)), tip_type, tip_id, tip_subreddit, tip_timestamp, "null", "null", status)
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        __mysqlsession.commit()
     
     
         #if tip is to bitcointip, add tip to giftamount for sender.
@@ -438,10 +438,10 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
             oldgiftamount = get_user_gift_amount(transaction_from)
             newgiftamount = oldgiftamount + transaction_amount
             sql = "UPDATE TEST_TABLE_USERS SET giftamount='%s' WHERE username='%s'" % (format_btc_amount(newgiftamount), transaction_from)
-            _mysqlcursor.execute(sql)
-            _mysqlcon.commit()
+            _mysqlexecute = _mysqlsession.execute(sql)
+            __mysqlsession.commit()
             
-            bitcointipsubreddit = _reddit.get_subreddit("bitcointip")
+            bitcointipsubreddit = _reddit.get_subreddit(_REDDITbotsubreddit)
             #based on newgiftamount, set flair and make friend if applicable
             if (newgiftamount>=Decimal('2')):
                 #bitcoin level
@@ -461,8 +461,8 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
                 
             #make all transactions to 'bitcointip' completed
             sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE receiver_username='bitcointip'" 
-            _mysqlcursor.execute(sql)
-            _mysqlcon.commit()
+            _mysqlexecute = _mysqlsession.execute(sql)
+            __mysqlsession.commit()
         
         print ("Transaction Successful:", transaction_from, ">>>>", transaction_amount, ">>>>", transaction_to)
         return txid
@@ -474,8 +474,8 @@ def do_transaction(transaction_from, transaction_to, transaction_amount, tip_typ
         
         #even though canceled, enter into transaction list but as cancelled
         sql = "INSERT INTO TEST_TABLE_TRANSACTIONS (transaction_id, sender_username, sender_address, receiver_username, receiver_address, amount_BTC, amount_USD, type, url, subreddit, timestamp, verify, statusmessage, status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%s', '%s')" % (txid, transaction_from, transaction_from, transaction_to, transaction_to, format_btc_amount(transaction_amount), format_fiat_amount(round(transaction_amount*Decimal(str(_lastexchangeratefetched['USD'])),2)), tip_type, tip_id, tip_subreddit, tip_timestamp, "null", "null", status)
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        __mysqlsession.commit()
         print ("Transaction Cancelled:", transaction_from, ">>>>", transaction_amount, ">>>>", transaction_to)
         return "error"
     
@@ -507,8 +507,8 @@ def update_transactions():
         
         #go through each pending transaction and evaluate it.
         sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE status='pending'"
-        _mysqlcursor.execute(sql)
-        results = _mysqlcursor.fetchall()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        results = _mysqlexecute.fetchall()
         for row in results:
             transactionid = row[0]
             receiver = row[3]
@@ -522,8 +522,8 @@ def update_transactions():
             if (receiverlastactive > timestamp):
                 #mark transaction as completed because user has been active after transaction
                 sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
-                _mysqlcursor.execute(sql)
-                _mysqlcon.commit()
+                _mysqlexecute = _mysqlsession.execute(sql)
+                __mysqlsession.commit()
             elif ( round(time.time()) > (timestamp + _intervalpendingcancel) ):
                 #transaction is older than 21 days and pending...try to reverse
                 ##check to make sure the reciever has enough
@@ -548,21 +548,21 @@ def update_transactions():
                     ##mark the transaction as reversed in the table
                     if(reversalstatus != "error"):
                         sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='reversed' WHERE transaction_id='%s'" % (transactionid)
-                        _mysqlcursor.execute(sql)
-                        _mysqlcon.commit()
+                        _mysqlexecute = _mysqlsession.execute(sql)
+                        __mysqlsession.commit()
                         print ("Transaction reversed: ", transactionid)
                     else:
                         ##the user doesn't have enough to reverse the transaction, they must have spent it in another way.
                         sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
-                        _mysqlcursor.execute(sql)
-                        _mysqlcon.commit()
+                        _mysqlexecute = _mysqlsession.execute(sql)
+                        __mysqlsession.commit()
                         print ("There has been some kind of error with the reversal:", transactionid)
                 else:
                     ## the receiver doesn't have enough.  They must have already spent it
                     ##mark as completed instead of reversed.
                     sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
-                    _mysqlcursor.execute(sql)
-                    _mysqlcon.commit()
+                    _mysqlexecute = _mysqlsession.execute(sql)
+                    __mysqlsession.commit()
                     print ("Transaction completed (user already spent funds):", transactionid)
             
 
@@ -582,15 +582,15 @@ def update_transactions():
     
             ##go through each user and compile list of pending transactions to them.
             sql = "SELECT * FROM TEST_TABLE_USERS WHERE 1"
-            _mysqlcursor.execute(sql)
-            result = _mysqlcursor.fetchall()
+            _mysqlexecute = _mysqlsession.execute(sql)
+            result = _mysqlexecute.fetchall()
             for row in result:
                 username = row[1]
                 havependingtransaction = False
                 
                 sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE receiver_username='%s' AND status='pending' ORDER BY timestamp ASC" % (username)
-                _mysqlcursor.execute(sql)
-                resultb = _mysqlcursor.fetchall()
+                _mysqlexecute = _mysqlsession.execute(sql)
+                resultb = _mysqlexecute.fetchall()
                 for row in resultb:
                     havependingtransaction = True
                     oldesttransaction = float(row[10])
@@ -607,8 +607,8 @@ def update_transactions():
                     historyrows = []
 
                     sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE receiver_username='%s' AND status='pending' ORDER BY timestamp DESC" % (username)
-                    _mysqlcursor.execute(sql)
-                    resultc = _mysqlcursor.fetchall()
+                    _mysqlexecute = _mysqlsession.execute(sql)
+                    resultc = _mysqlexecute.fetchall()
                     for row in resultc:
                         if (k<10):
                             sender = row[1]
@@ -654,8 +654,8 @@ def update_transactions():
                 
                     ##put message in to submit table
                     sql = "INSERT INTO TEST_TABLE_TOSUBMIT (type, replyto, subject, text, captchaid, captchasol, sent, timestamp) VALUES ('message', '%s', 'Bitcointip Pending Transaction(s) Notice', '%s', '', '', '0', '%f')" % (username, message, round(time.time()))
-                    _mysqlcursor.execute(sql)
-                    _mysqlcon.commit()
+                    _mysqlexecute = _mysqlsession.execute(sql)
+                    __mysqlsession.commit()
                 
                     print ("Notification of Pending transaction(s) prepared for", username)
                     
@@ -1214,8 +1214,8 @@ def eval_tip(thing):
         #if comment reply is prepared, send it
         #enter reply into table
         sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp)  VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f')" % ("", "comment", thing.permalink, "", commentreplymessage, "", "", "0", tip_timestamp)
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        __mysqlsession.commit()
         
     #TODOif 
     #Send a message to the sender under what conditions?
@@ -1242,8 +1242,8 @@ def eval_tip(thing):
         #if pm to sender is prepared, send it
         #enter message into table
         sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp)  VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f')" % ("", "message", transaction_from, pmsendersubject, pmsendermessage, "", "", "0", tip_timestamp)
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        __mysqlsession.commit()
 
     pmreceivermessage=""
     #Send a message to the receiver under what conditions?
@@ -1262,8 +1262,8 @@ def eval_tip(thing):
         #if pm to receiver is prepared, send it
         #enter message into table
         sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp)  VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f')" % ("", "message", transaction_to, pmreceiversubject, pmreceivermessage, "", "", "0", tip_timestamp)
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        __mysqlsession.commit()
    
             
     if (tip_command):
@@ -1389,8 +1389,8 @@ def find_message_command(message): #array
                             
                             #insert the transaction to the list of TABLE_FAUCET_PAYOUTS
                             sql = "INSERT INTO TEST_TABLE_FAUCET_PAYOUTS (transaction_id, username, address, amount, timestamp) VALUES ('%s', '%s', '%s', '%s', '%f')" % (txid, message.author.name, karmabitcoinaddress, format_btc_amount(bitcoinamount), round(time.time()))
-                            _mysqlcursor.execute(sql)
-                            _mysqlcon.commit()
+                            _mysqlexecute = _mysqlsession.execute(sql)
+                            __mysqlsession.commit()
 
                         else:
                             #there was an error with blockchain, have the user try again later maybe.
@@ -1433,8 +1433,8 @@ def find_message_command(message): #array
         historyrows = []
 
         sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE sender_username='%s' OR receiver_username='%s' ORDER BY timestamp DESC" % (message.author.name, message.author.name)
-        _mysqlcursor.execute(sql)
-        result = _mysqlcursor.fetchall()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        result = _mysqlexecute.fetchall()
         for row in result:
             if (k<10):
                 sender = row[1]
@@ -1552,8 +1552,8 @@ def find_message_command(message): #array
 
             #Check if user already has blockchain.info wallet.
             sql = "SELECT * FROM TEST_TABLE_BLOCKCHAINACCOUNTS WHERE username='%s'" % (message.author.name)
-            _mysqlcursor.execute(sql)
-            result = _mysqlcursor.fetchall()
+            _mysqlexecute = _mysqlsession.execute(sql)
+            result = _mysqlexecute.fetchall()
             for row in result:
                 username = row[0]
                 guid = row[1]
@@ -1579,8 +1579,8 @@ def find_message_command(message): #array
                 print ("url",url)
 
 
-                req = urllib.request.Request(url)
-                file = urllib.request.urlopen(req)
+                req = urllib2.Request(url)
+                file = urllib2.urlopen(req)
 
                 encoding = file.headers.get_content_charset()
                 content = file.readall().decode(encoding)
@@ -1599,8 +1599,8 @@ def find_message_command(message): #array
 
                 #write the username, guid, and pass to table
                 sql = "INSERT INTO TEST_TABLE_BLOCKCHAINACCOUNTS (username, guid, password) VALUES ('%s', '%s', '%s')" % (username, guid, password)
-                _mysqlcursor.execute(sql)
-                _mysqlcon.commit()
+                _mysqlexecute = _mysqlsession.execute(sql)
+                __mysqlsession.commit()
                 print("Inserted to MYSQL BLOCKCHAINACCOUNTS : %s" % (username))
 
             if (guid):
@@ -1680,8 +1680,8 @@ def find_message_command(message): #array
                 ##update user table entry with new balance and new address
 
                 sql = "UPDATE TEST_TABLE_USERS SET address='%s' WHERE username='%s'" % (authornewaddress, message.author.name)
-                _mysqlcursor.execute(sql)
-                _mysqlcon.commit()
+                _mysqlexecute = _mysqlsession.execute(sql)
+                __mysqlsession.commit()
                 
             else:
                 returnstring = "There was a problem setting up your new account. Please report if there is a problem."
@@ -1699,8 +1699,8 @@ def find_message_command(message): #array
         set_last_time("LASTACTIVE_"+message.author.name, round(time.time()))
         
         sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE receiver_username='%s' AND status='pending'" % (message.author.name)
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        __mysqlsession.commit()
         
         returnstring = "Pending tips to you have been accepted."
         
@@ -1718,8 +1718,8 @@ def find_message_command(message): #array
         
         #first in, first returned
         sql = "SELECT * FROM TEST_TABLE_TRANSACTIONS WHERE status='pending' AND receiver_username='%s' ORDER BY timestamp ASC" % (message.author.name)
-        _mysqlcursor.execute(sql)
-        results = _mysqlcursor.fetchall()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        results = _mysqlexecute.fetchall()
         for row in results:
             transactionid = row[0]
             receiver = row[3]
@@ -1752,21 +1752,21 @@ def find_message_command(message): #array
                 ##mark the transaction as reversed in the table
                 if(reversalstatus != "error"):
                     sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='reversed' WHERE transaction_id='%s'" % (transactionid)
-                    _mysqlcursor.execute(sql)
-                    _mysqlcon.commit()
+                    _mysqlexecute = _mysqlsession.execute(sql)
+                    __mysqlsession.commit()
                     print ("Transaction reversed: ", transactionid)
                 else:
                     ##the user doesn't have enough to reverse the transaction, they must have spent it in another way.
                     sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
-                    _mysqlcursor.execute(sql)
-                    _mysqlcon.commit()
+                    _mysqlexecute = _mysqlsession.execute(sql)
+                    __mysqlsession.commit()
                     print ("Transaction completed (user already spent funds in some other way):", transactionid)
             else:
                 ## the receiver doesn't have enough.  They must have already spent it
                 ##mark as completed instead of reversed.
                 sql = "UPDATE TEST_TABLE_TRANSACTIONS SET status='completed' WHERE transaction_id='%s'" % (transactionid)
-                _mysqlcursor.execute(sql)
-                _mysqlcon.commit()
+                _mysqlexecute = _mysqlsession.execute(sql)
+                __mysqlsession.commit()
                 print ("Transaction completed (user already spent funds):", transactionid)
     
         returnstring = "Pending tips to you have been returned to sender if possible."
@@ -1797,8 +1797,8 @@ def find_message_command(message): #array
         #insert returnstring into TEST_TABLE_TOSUBMIT
         #enter message into table
         sql = "INSERT INTO TEST_TABLE_TOSUBMIT (tosubmit_id, type, replyto, subject, text, captchaid, captchasol, sent, timestamp)  VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f')" % ("", "message", message.author.name, returnsubject, returnstring, "", "", "0", message.created_utc)
-        _mysqlcursor.execute(sql)
-        _mysqlcon.commit()
+        _mysqlexecute = _mysqlsession.execute(sql)
+        __mysqlsession.commit()
         print("To:",message.author.name)
         print (returnsubject)
         #print (returnstring)
@@ -1818,7 +1818,7 @@ def eval_messages():
     #get some unread messages.
     newest_message_evaluated_time = 0
     
-    unread_messages = _reddit.user.get_unread(limit=1000)
+    unread_messages = _reddit.get_unread(limit=1000)
     for message in unread_messages:
         if (not message.was_comment):
             #ignore self messages and bannedusers messages/comments
@@ -1936,8 +1936,8 @@ def submit_messages():
     
     ##go through list of tosubmit orderby timestamp from oldest to newest
     sql = "SELECT * FROM TEST_TABLE_TOSUBMIT WHERE sent='0' ORDER BY timestamp ASC"
-    _mysqlcursor.execute(sql)
-    result = _mysqlcursor.fetchall()
+    _mysqlexecute = _mysqlsession.execute(sql)
+    result = _mysqlexecute.fetchall()
     for row in result:
         if (going):
             print ("Trying to go through each unsent message/comment")
@@ -1962,8 +1962,8 @@ def submit_messages():
                     print ("Comment Sent")
                     ##it worked.
                     sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%f' AND replyto='%s'" % (thingtype, timestamp, replyto)
-                    _mysqlcursor.execute(sql)
-                    _mysqlcon.commit()
+                    _mysqlexecute = _mysqlsession.execute(sql)
+                    __mysqlsession.commit()
                     print ("Comment Marked as delivered")
                     
                 except Exception as e:
@@ -1978,8 +1978,8 @@ def submit_messages():
                     _reddit.send_message(replyto,subject,text)
                     print ("message sent")
                     sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=1 WHERE type='%s' AND timestamp='%f' AND replyto='%s'" % (thingtype, timestamp, replyto)
-                    _mysqlcursor.execute(sql)
-                    _mysqlcon.commit()
+                    _mysqlexecute = _mysqlsession.execute(sql)
+                    __mysqlsession.commit()
                     print ("Message marked as delivered")
                         
                 except Exception as e:
@@ -1987,60 +1987,34 @@ def submit_messages():
                     if (e == "Error `that user doesn't exist` on field `to`"):
                         #user doesn't exist, cancel the message
                         sql = "UPDATE TEST_TABLE_TOSUBMIT SET sent=x WHERE type='%s' AND timestamp='%f' AND replyto='%s'" % (thingtype, timestamp, replyto)
-                        _mysqlcursor.execute(sql)
-                        _mysqlcon.commit()
+                        _mysqlexecute = _mysqlsession.execute(sql)
+                        __mysqlsession.commit()
                         print ("user doesn't exist. message cancelled.")
 
                 
                     
 
+def exitexception(e):
+    print ("Error ", e)
+    bitcoind.walletlock()
+    backup_database()
+    backup_wallet()
+    #notify_admin()
+    exit(1)
 
-def exitpeacefully(e):
-    print ("Exiting Peacefully")
-    
-    #LOCK BITCOIND WALLET AT PROGRAM END
-    print ("Locking Bitcoin Wallet")
-    print (bitcoind.walletlock())
-    print ("Error",e)
-    #The bot has had a problem and quit. Email the admin for help:
-    errorstring = ("Error, the bot has stopped running!\n\n\nException:",str(e))
-    print ("Emailing Admin")
-    #email admin alert
-    emailcommand = 'echo "The bot has stopped.\n\n Error:\n\n" | mutt -s "ALERT: BOT HAS STOPPED" -- root '+_adminemail
-    print (emailcommand)
-    result = subprocess.call(emailcommand, shell=True)
-    
-    #then back up the wallet:
-    datetime = time.strftime("%a_%Y-%b-%d_%H:%M:%S", time.gmtime())
-    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet_%s.dat" % (datetime))
-    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet.dat")
-    print ("Backed up wallet")
 
-    #then backup the mysql database:
-    backupmysqlcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db.sql"
-    backupmysqldatedcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db_`date +%a_%Y-%b-%d_%H:%M:%S`.sql"
-    result = subprocess.call(backupmysqlcommand, shell=True)
-    result = subprocess.call(backupmysqldatedcommand, shell=True)
-    print ("Backed up mysql db")
-    exit(0)
-
-    
 def createbackups():
-    #back up the wallet:
-    datetime = time.strftime("%a_%Y-%b-%d_%H:%M:%S", time.gmtime())
-    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet_%s.dat" % (datetime))
-    result = bitcoind.backupwallet("/root/backups/bitcointip_wallet.dat")
-    print ("Backed up wallet")
+    backup_database()
+    backup_wallet()
 
-    #then backup the mysql database:
-    backupmysqlcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db.sql"
-    backupmysqldatedcommand = "mysqldump --user "+_MYSQLlogin+" --password="+_MYSQLpass+" bitcointip > /root/backups/bitcointip_db_`date +%a_%Y-%b-%d_%H:%M:%S`.sql"
-    result = subprocess.call(backupmysqlcommand, shell=True)
-    result = subprocess.call(backupmysqldatedcommand, shell=True)
-    print ("Backed up mysql db")
-    _lastbackuptime = round(time.time())
-    set_last_time("lastbackuptime", _lastbackuptime)
-	
+
+def backup_database():
+    print "Backing up database..."
+
+
+def backup_wallet():
+    print "Backing up wallet..."
+
 	
 def main():
         
@@ -2078,46 +2052,34 @@ def main():
         createbackups()
 
 
-
-
-argument_parser = argparse.ArgumentParser(
-  description = "Runs the Bitcointip bot",
-)
-argument_parser.add_argument(
-  'bitcoind_second_password',
-  metavar='PASSWORD',
-  type=str,
-  help="bitcoind's second password to unlock the wallet",
-)
-argument_parser.add_argument(
-  'dsn_url',
-  metavar='DATABASE_URL',
-  type=str,
-  help="Database URL (like 'sqlite:///bitcointip.db') conforming to http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html",
-)
-cmdline_args = argument_parser.parse_args()
-
 ######################################################################
 #MAIN
 ######################################################################
-#DETAILS:
-_MYSQLhost = "???"
-_MYSQLlogin = "???"
-_MYSQLpass = "???"
-_MYSQLdbname = "???"
-_MYSQLport = "???"
 
-_BITCOINDlogin = "???"
-_BITCOINDpass = "???"
-_BITCOINDip = "???"
-_BITCOINDport = "???"
-_BITCOINDsecondpass = cmdline_args.bitcoind_second_password
+# Fetch configuration from YAML file
 
-_REDDITbotusername = "???"
-_REDDITbotpassword = "???"
-_REDDITuseragent = "???"
+_SETTINGS = yaml.load(open("bitcointip-settings.yaml"))
 
-_adminemail = "???"
+_MYSQLhost = _SETTINGS['mysql-host']
+_MYSQLlogin = _SETTINGS['mysql-user']
+_MYSQLpass = _SETTINGS['mysql-pass']
+_MYSQLport = _SETTINGS['mysql-port']
+_MYSQLdbname = _SETTINGS['mysql-db']
+_MYSQLdsn = "mysql+mysqldb://" + _MYSQLlogin + ":" + _MYSQLpass + "@" + _MYSQLhost + "/" + _MYSQLdbname
+
+_BITCOINDlogin = _SETTINGS['bitcoind-rpclogin']
+_BITCOINDpass = _SETTINGS['bitcoind-rpcpass']
+_BITCOINDip = _SETTINGS['bitcoind-rpchost']
+_BITCOINDport = _SETTINGS['bitcoind-rpcport']
+_BITCOINDsecondpass = _SETTINGS['bitcoind-walletpass']
+_jsonRPCClientString = "http://" + _BITCOINDlogin + ":" + _BITCOINDpass + "@" + _BITCOINDip + ":" + str(_BITCOINDport) + "/"
+
+_REDDITbotusername = _SETTINGS['reddit-username']
+_REDDITbotpassword = _SETTINGS['reddit-pass']
+_REDDITuseragent = _SETTINGS['reddit-useragent']
+_REDDITbotsubreddit = _SETTINGS['reddit-botsubreddit']
+
+_adminemail = _SETTINGS['admin-email']
 
 
 # BOTSTATUS (DOWN/UP)
@@ -2137,25 +2099,27 @@ _intervalpendingnotify = 60*60*24*7
 
 # CONNECT TO MYSQL DATABASE
 try:
-    dsn_url = cmdline_args.dsn_url
-    databaseobject = btctip.db.BitcointipDatabase(dsn_url)
+    print "Connecting to " + _MYSQLdsn
+    databaseobject = btctip.db.BitcointipDatabase(_MYSQLdsn)
     _mysqlcon = databaseobject.connect()
     _mysqlcursor = _mysqlcon
+    _mysqlsession = sessionmaker(bind=_mysqlcon)
+    _mysqlsession = _mysqlsession()
     print ("Connected to database.")
 except Exception as e:
-    exitpeacefully(e)
+    exitexception(e)
 
 
 
 # CONNECT TO BITCOIND SERVER
 try:
-    _jsonRPCClientString = "http://"+_BITCOINDlogin+":"+_BITCOINDpass+"@"+_BITCOINDip+":"+_BITCOINDport+"/"
+    print "Connecting to " + _jsonRPCClientString
     bitcoind.access = ServiceProxy(_jsonRPCClientString)
     print("Connected to BITCOIND.")
     if (bitcoind.getinfo()=="error"):
-        exitpeacefully("error")
+        exitexception("bitcoind.getinfo()")
 except Exception as e:
-    exitpeacefully(e)
+    exitexception(e)
 
 
     
@@ -2165,7 +2129,7 @@ try:
     _reddit.login(_REDDITbotusername, _REDDITbotpassword)
     print("Connected to REDDIT.")
 except Exception as e:
-    exitpeacefully(e)
+    exitexception(e)
 
 
 #TIMINGS
@@ -2267,7 +2231,7 @@ while (True):
         if (str(e)=="HTTP Error 504: Gateway Time-out" or str(e)=="timed out"):
             _sleeptime = round(_sleeptime*2)
         else:
-            exitpeacefully(e)
+            exitexception(e)
 
     #if sleeping for a long time, email admin.
     if (_sleeptime>=(10*60)):
